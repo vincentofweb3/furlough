@@ -6,7 +6,7 @@ a reset rather than debugging a vanished contract.
 ## Prerequisites
 
 - Python 3.12
-- A key. **Studionet charges no gas**, so no funds are needed there — the deploy script prices
+- A key. **Studionet charges no gas**, so no funds are needed there - the deploy script prices
   the transaction at zero and an unfunded key deploys fine. Asimov needs a funded key.
 - GenLayer SDK: `genlayer-test[sim]` and `genlayer-py`.
 
@@ -31,7 +31,7 @@ Options:
 | `--consensus-max-rotations` | `5` | lower this, or the deploy stalls waiting on rotations |
 
 Deployment is a consensus transaction and takes real time to finalise. If it times out waiting
-for rotations, the contract is usually deployed but unsettled — check the explorer before
+for rotations, the contract is usually deployed but unsettled - check the explorer before
 re-deploying, because a second deploy creates a second contract.
 
 ## Live deployment
@@ -41,8 +41,8 @@ Deployed and exercised on Studionet on 2026-10-20:
 | | |
 | --- | --- |
 | contract | `0x7Ee18844C80395E23f06Cf75D2B998723E36804f` |
-| deploy tx | `0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905` — FINALIZED |
-| live case tx | `0x2e466d7a8e0d17380a7ba29ffdfb12a6ff2fec90df5ecd1c6bff2eef5f760014` — FINALIZED |
+| deploy tx | `0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905` - FINALIZED |
+| live case tx | `0x2e466d7a8e0d17380a7ba29ffdfb12a6ff2fec90df5ecd1c6bff2eef5f760014` - FINALIZED |
 | live verdict | `CONFIRMED_MISBEHAVIOR`, cut armed for 900s, real validator LLMs |
 
 The contract **must** carry the runner header on line 1. Without it Studionet finalizes the
@@ -68,7 +68,7 @@ That hash is the canonical one from the GenLayer docs. Do not add a second runne
 2. **Publish a journal.** The agent writes a window of its own behaviour to a URL and passes
    that URL to `open_case`. Schema is in `tests/direct/fixtures.py`.
 
-3. **Open a case.** Permissionless — anyone may call it.
+3. **Open a case.** Permissionless - anyone may call it.
 
    ```json
    {
@@ -115,7 +115,7 @@ Step 3 is the whole product. If it needs a human to complete, the deployment is 
 | `Only the bound agent may draw` | `set_agent()` has not been called, or you are calling from the owner address. |
 | `agent allowance is cut until the window expires` | the cut is working. Wait it out, or open a case from a later window. |
 
-## The cache trap — read this before running `genvm-lint check`
+## The cache trap - read this before running `genvm-lint check`
 
 This bit us during the Stage 7b review and it will bite a reviewer, because running the tests is
 the first thing anyone does.
@@ -140,11 +140,11 @@ python3.12 -m pytest -q                  # expect: 87 passed
 ```
 
 Run `--fix` after any `genvm-lint check`. The script moves the bad runner to
-`unusable-runners/` rather than renaming it in place — an `unusable-` prefix sorts *above* a hash,
+`unusable-runners/` rather than renaming it in place - an `unusable-` prefix sorts *above* a hash,
 so an in-place rename leaves the broken runner winning the sort.
 
 > `genvm-lint check` runs its lint rules clean on this contract, but its SDK-load validation
-> cannot complete on this machine — the `runners/py-genlayer/*.tar` bundle entries have been
+> cannot complete on this machine - the `runners/py-genlayer/*.tar` bundle entries have been
 > pruned from `~/.cache`. The same failure occurs on known-good reference contracts, so it is an
 > environment limitation rather than a defect in this contract. The 87-test suite runs the
 > contract against a real GenVM bundle and is the stronger check.

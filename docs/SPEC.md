@@ -1,4 +1,4 @@
-# Furlough — Specification
+# Furlough - Specification
 
 Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder Program.
 
@@ -16,7 +16,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 
 ## Problem statement
 
-- **Problem**: An autonomous agent holding a spend allowance can be turned against itself —
+- **Problem**: An autonomous agent holding a spend allowance can be turned against itself -
   a prompt injection in a tool result, a degraded dependency returning garbage, a retry loop,
   or a runaway fan-out. The agent that is misbehaving is also the only party positioned to
   notice it.
@@ -27,7 +27,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
   advisory. The action is performed by a human, or not performed at all.
 - **Cost of the status quo**: the failure mode is not a bad alert, it is money moving. A rate
   limiter cannot distinguish "looping on a failing endpoint" from "working hard", and a human
-  kill switch is a single unaccountable key — the same criticism circuit breakers attract in
+  kill switch is a single unaccountable key - the same criticism circuit breakers attract in
   DeFi.
 - **Why GenLayer cares**: this is the dispute-resolution gap in the agentic-commerce stack.
   Every layer being built (x402, ERC-8004, A2A, ACP) engineers the happy path; none ships
@@ -53,7 +53,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 - **Measurable outcome**: `allowance_remaining()` returns `0` from the moment a verdict
   finalises until `expires_at`, and returns to its prior value automatically afterwards, with
   zero human transactions in the recovery path.
-- **Rubric criteria served**: *novelty* (no equivalent exists — no on-chain circuit breaker for
+- **Rubric criteria served**: *novelty* (no equivalent exists - no on-chain circuit breaker for
   AI agents where no human performs the action), *complexity* (independent-fetch consensus with
   an anti-equivocation reduction, plus custodied value accounting), *impact* (Tools &
   Infrastructure category, and a deployed contract that earns dev fees).
@@ -62,7 +62,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 
 ## Core user journeys
 
-**Journey 1 — the confirmed cut (primary path)**
+**Journey 1 - the confirmed cut (primary path)**
 
 1. Operator calls `deposit()` to fund the custodian balance and `set_agent()` to bind an agent address.
 2. Agent draws against its allowance via `draw(amount)`; draws succeed.
@@ -75,7 +75,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 6. After `expires_at`, `allowance_remaining()` returns the full prior value. No transaction
    from any human restores it.
 
-**Journey 2 — the false report (secondary path, in scope)**
+**Journey 2 - the false report (secondary path, in scope)**
 
 1. Same steps 1–3, but the journal is ordinary agent activity.
 2. Consensus returns `FALSE_REPORT`.
@@ -128,7 +128,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 - **Contract layer**: `AgentBreaker`, deployed to GenLayer Studionet (chain `61999`).
 - **External integrations**: one HTTP GET to a journal URL the case names, from inside the
   nondet block. One model inference. Nothing else. No API key, no paid service.
-- **Auth**: none. Cases are permissionless by design — the operator must not be able to
+- **Auth**: none. Cases are permissionless by design - the operator must not be able to
   suppress a case against their own agent.
 - **Deployment target**: GenLayer Studionet via `genlayer-js`.
 
@@ -170,7 +170,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 | 5 | Reduction | `reduce_journal()` | Missing fields | Every field bands to `UNKNOWN`, which is itself stable |
 | 6 | Adjudication | `gl.nondet.exec_prompt(...)` | Model invents a fourth value, or returns non-JSON | Coerced to `INSUFFICIENT_EVIDENCE`; never obeyed |
 | 7 | Validator gate | `run_nondet_unsafe` | Validators disagree on the enum | Round aborts, nothing is admitted, nothing is cut |
-| 8 | Retention | `_record()` | — | Fully public via `get_case()` |
+| 8 | Retention | `_record()` | - | Fully public via `get_case()` |
 
 Steps 4 and 6 cost money (model inference) and can be rate-limited. Step 4 is a plain HTTP GET
 against a URL the reporter chooses, which is why the output is constrained to three strings and
@@ -213,7 +213,7 @@ why the reduction happens *before* anything consensus-bound sees the data.
 | GenLayer Studionet | Deploy and finalise verdicts | Testnet wallet key | Yes | Local `gltest` harness |
 | GenVM `v0.3.0-rc7` | Contract runtime | None (pinned bundle) | Yes (cached locally) | Pin fails loudly |
 | Model provider | Adjudication inference | Hosted by GenLayer nodes | Yes | Out-of-enum coerced to `INSUFFICIENT_EVIDENCE` |
-| Journal host | Agent telemetry source | None — any HTTP URL | Yes | Non-200 becomes `INSUFFICIENT_EVIDENCE` |
+| Journal host | Agent telemetry source | None - any HTTP URL | Yes | Non-200 becomes `INSUFFICIENT_EVIDENCE` |
 
 ---
 
@@ -236,11 +236,15 @@ behaviour regressed; it does not mean a human eyeballed it once.
 - [x] An out-of-range cut policy is rejected at deploy rather than silently defaulted.
 - [x] Every timestamp spelling the node can supply collapses to one canonical form.
 - [ ] `genvm-lint check` passes. **Lint rules run clean; its SDK-load validation cannot complete
-      on this machine** — the `runners/py-genlayer/*.tar` bundle entries have been pruned from
+      on this machine** - the `runners/py-genlayer/*.tar` bundle entries have been pruned from
       `~/.cache`. The same failure occurs on known-good reference contracts, so it is
       environmental. The 87-test suite runs the contract against a real GenVM bundle and is the
       stronger check.
-- [ ] Deployed to Studionet and at least one case finalised live. **Blocked on a funded key.**
+- [x] Deployed to Studionet and at least one case finalised live. No funded key was needed -
+      Studionet is zero-fee. Contract `0x7Ee18844C80395E23f06Cf75D2B998723E36804f`; live case
+      `0x2e466d7a…f760014` reached `CONFIRMED_MISBEHAVIOR` under real validator LLMs and the cut
+      lifted by clock alone. The funded value loop was not exercised live; see
+      [`SUBMISSION.md`](SUBMISSION.md) §6.
 - [ ] README setup steps verified on a clean environment.
 
 Two criteria above are weaker than they look and are called out rather than hidden:
