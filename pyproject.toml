@@ -1,0 +1,23 @@
+[project]
+name = "furlough"
+version = "0.1.0"
+description = "Adjudicated circuit breaker for an autonomous AI agent: a GenLayer Intelligent Contract that suspends an agent's spend allowance until a self-expiring deadline."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "genlayer-test[sim]==0.29.2",
+    "genvm-linter==0.11.0",
+    "genlayer-py==0.16.3",
+    "python-dotenv==1.0.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests/direct"]
+
+[tool.uv]
+package = false

@@ -1,0 +1,32 @@
+name: tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  hermetic-gate:
+    name: hermetic gate (no network)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "genlayer-test[sim]==0.29.2" "genlayer-py==0.16.3" pytest
+
+      # The contract must not need a network, an API key or a funded wallet to be tested.
+      - name: Run the suite
+        run: python -m pytest -q
+
+      # The GenVM bundle is pinned in tests/direct/conftest.py. Without the pin, gltest picks
+      # the lexicographically newest tarball in ~/.cache, which is not reproducible.
+      - name: Show the pinned SDK bundle
+        run: python -c "import re,sys; print(re.search(r'SDK_VERSION = \"(.*?)\"', open('tests/direct/conftest.py').read()).group(1))"
