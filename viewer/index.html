@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Furlough - live status board</title>
+<meta name="description" content="Live status of the Furlough adjudicated circuit breaker on GenLayer Studionet.">
+<style>
+  :root {
+    --bg: #0b0e12; --panel: #12161d; --line: #232a35;
+    --text: #e6e9ee; --dim: #8b95a5;
+    --green: #3ddc84; --red: #ff5d5d; --amber: #f2b544; --accent: #7aa2ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  main { max-width: 1000px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
+  h1 { margin: 0; font-size: 24px; letter-spacing: .4px; }
+  h1 span { color: var(--accent); font-weight: 400; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin: 36px 0 14px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--dim); white-space: nowrap; }
+  .error { border: 1px solid var(--red); color: var(--red); border-radius: 8px; padding: 12px 14px; margin-top: 20px; font-size: 13px; }
+  .breaker { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 24px; }
+  .pill { border-radius: 8px; padding: 10px 16px; font-size: 18px; letter-spacing: 2px; border: 1px solid; }
+  .pill.open { color: var(--green); border-color: var(--green); }
+  .pill.cut { color: var(--red); border-color: var(--red); background: rgba(255,93,93,.07); }
+  .countdown { font-size: 28px; color: var(--red); min-height: 34px; }
+  .muted { color: var(--dim); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .card .value { font-size: 15px; word-break: break-all; }
+  .case { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+  .case.confirmed { border-left-color: var(--red); }
+  .case.false-report { border-left-color: var(--dim); }
+  .case.insufficient { border-left-color: var(--amber); }
+  .case .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; justify-content: space-between; }
+  .case .id { font-size: 16px; }
+  .badge { font-size: 12px; letter-spacing: 1px; border-radius: 6px; padding: 2px 8px; border: 1px solid; }
+  .badge.confirmed { color: var(--red); border-color: var(--red); }
+  .badge.false-report { color: var(--dim); border-color: var(--dim); }
+  .badge.insufficient { color: var(--amber); border-color: var(--amber); }
+  .case .claim { margin: 10px 0 6px; }
+  .case .row { color: var(--dim); font-size: 13px; margin-top: 4px; }
+  .sig { color: var(--dim); font-size: 12px; word-break: break-all; margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--dim); font-size: 13px; }
+  footer { margin-top: 48px; border-top: 1px solid var(--line); padding-top: 16px; color: var(--dim); font-size: 13px; }
+  .empty { color: var(--dim); border: 1px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Furlough <span>/ live status board</span></h1>
+    <div class="chips">
+      <span class="chip">Studionet - chain 61999</span>
+      <span class="chip">reads need no wallet</span>
+      <a class="chip" id="contract-link" href="#" target="_blank" rel="noopener">contract</a>
+    </div>
+  </header>
+
+  <div id="error" class="error" hidden></div>
+
+  <div class="breaker">
+    <div class="pill" id="state-pill">connecting</div>
+    <div>
+      <div class="countdown" id="countdown"></div>
+      <div class="muted" id="cut-meta">reading the contract...</div>
+    </div>
+  </div>
+
+  <h2>Custody and control</h2>
+  <div class="grid" id="facts"></div>
+
+  <h2>Case record</h2>
+  <div id="cases"><div class="empty">reading...</div></div>
+
+  <footer>
+    A cut is enforced by the contract itself: while the window is open, <code>draw()</code> is
+    refused before any state changes. When the window passes, the allowance restores itself with
+    no transaction and no human. Every field on this page is a free read against
+    <a id="explorer-link" href="https://explorer-studio.genlayer.com" target="_blank" rel="noopener">GenLayer Studio</a>.
+    Source: <a id="repo-link" href="https://github.com/vincentofweb3/furlough" target="_blank" rel="noopener">github.com/vincentofweb3/furlough</a>.
+    <br>Last refreshed <span id="updated">-</span>.
+  </footer>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

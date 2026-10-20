@@ -83,21 +83,31 @@ That hash is the canonical one from the GenLayer docs. Do not add a second runne
 
 ## Smoke test after deploy
 
+The loop is scripted; one command reads it, one files a case:
+
+```bash
+python3.12 scripts/live_check.py status
+python3.12 scripts/live_check.py open-case --journal-url URL --claim "..."
+```
+
+In contract terms:
+
 ```bash
 # 1. allowance before any case
 allowance_remaining() == deposited
 
 # 2. open a case against a runaway journal, wait for FINALIZED
-#    LIVE: done against a zero allowance -- verdict CONFIRMED_MISBEHAVIOR, is_cut() == true
-get_verdict("demo-runaway") == "CONFIRMED_MISBEHAVIOR"
+#    LIVE: live-runaway and cli-check-1 -- verdict CONFIRMED_MISBEHAVIOR, is_cut() == true
+get_verdict("live-runaway") == "CONFIRMED_MISBEHAVIOR"
 is_cut() == true
 allowance_remaining() == 0
 
 # 3. do nothing. After default_cut_seconds:
 is_cut() == false
 allowance_remaining() == deposited      # restored with no transaction
-#    LIVE: skipped by decision. The live case ran with a zero allowance; the value half of
-#    steps 1 and 3 is covered by the hermetic custody tests only.
+#    LIVE: the lift was observed twice -- live-runaway at 2026-10-20T18:34:07Z and cli-check-1
+#    at 21:54:21Z -- with no transaction in between either time. The value half of steps 1
+#    and 3 (deposited > 0) was skipped by decision and is covered by the custody tests only.
 ```
 
 Step 3 is the whole product. If it needs a human to complete, the deployment is wrong.

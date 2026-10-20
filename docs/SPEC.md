@@ -105,16 +105,17 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
   It only pauses access to it. This is a design invariant, not a missing feature.
 - Appeals or counter-cases. There is no un-freeze path, by design.
 - Cross-chain settlement, VRF, oracles, price feeds.
-- Frontend, dashboard, or landing page. Judged by stewards on novelty/complexity/impact, not
-  on demo polish; one week is not enough to do both well.
+- A write-enabled frontend: wallet connection, filing or drawing from a page. Judged by stewards
+  on novelty/complexity/impact, not on demo polish; one week is not enough to do both well. A
+  read-only status viewer (`viewer/`) was added after the live run as a read surface; it holds no
+  keys and adds nothing the contract does not already expose.
 - Authentication, accounts, rate limiting on public endpoints.
 - Multiple agents per contract.
 
 **Deferred unless time allows**, in value-per-hour order:
 
-1. A minimal read-only HTML case viewer (static, no build step).
-2. A `countersign`/`attest` path letting the agent acknowledge the journal digest.
-3. Per-tool-kind breakdown in the digest so validators can distinguish a benign retry loop
+1. A `countersign`/`attest` path letting the agent acknowledge the journal digest.
+2. Per-tool-kind breakdown in the digest so validators can distinguish a benign retry loop
    from an injection-driven fan-out.
 
 ---
@@ -122,7 +123,7 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 ## System architecture
 
 - **Runtime**: Python 3.12, `genlayer` SDK (Intelligent Contract runtime), GenVM `v0.3.0-rc7`.
-- **Frontend**: none (see out of scope).
+- **Frontend**: read-only status viewer (`viewer/`, static, no build step); no write UI (see out of scope).
 - **Backend / services**: none. The contract is the whole system.
 - **Data layer**: GenLayer contract storage (`TreeMap`, `DynArray`).
 - **Contract layer**: `AgentBreaker`, deployed to GenLayer Studionet (chain `61999`).

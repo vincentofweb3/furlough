@@ -151,13 +151,19 @@ $ python3.12 -m pytest -q
       against a zero allowance; the value loop is covered by the hermetic custody tests, not live.
 - [x] Confirm the cut lifts by itself with no transaction - `is_cut()` false and
       `seconds_remaining()` 0 at `2026-10-20T18:34:07Z`, with no transaction in between
-- [ ] Screenshots of the live case for the submission
+- [x] A second live case filed through `scripts/live_check.py` (`cli-check-1`) - same verdict,
+      and its 900-second window also lifted by the clock
+- [x] Read-only status board (`viewer/`) and live CLI (`scripts/live_check.py`), so a steward
+      can see the breaker without reading the contract
+- [x] Screenshots of the cut and the no-transaction lift - `docs/screenshots/`, embedded in the README
 - [ ] Make the repo public, verify GitHub OAuth on points.genlayer.com, submit
 
 **Deliberately not done, and why:**
 
-- A frontend, dashboard or landing page - out of scope by decision (`SPEC.md`). Stewards judge
-  novelty, complexity and impact; a polished demo page does not move those and costs days.
+- A write-enabled frontend (wallet connect, filing from the page) - out of scope by decision
+  (`SPEC.md`). Stewards judge novelty, complexity and impact; a polished dApp does not move those
+  and costs days. A read-only viewer was added after the live run so the breaker can be seen
+  working; it holds no keys.
 - Signed-digest commitment so a journal provably came from the bound agent. This is the single
   most important missing piece and it is a *new stage*, not a patch - see `CONSENSUS.md` §11.
   Attempting it now would risk the deploy that the submission depends on.
