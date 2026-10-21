@@ -115,9 +115,10 @@ times and every window ended by the clock, with no transaction anywhere near the
 | | |
 | --- | --- |
 | Contract | `0x7Ee18844C80395E23f06Cf75D2B998723E36804f`, chain 61999 (deploy tx `0x20711178…5cb905`) |
-| Status board | https://vincentofweb3.github.io/furlough/ - every field is a free, walletless read |
-| Report console | https://vincentofweb3.github.io/furlough/report/ - file a case from a browser wallet; permissionless and zero-fee |
-| Owner console | https://vincentofweb3.github.io/furlough/owner/ - change future policy only; no method can lift an armed cut |
+| Status board | https://furlough-dt8b.vercel.app/ - every field is a free, walletless read |
+| Report console | https://furlough-dt8b.vercel.app/report/ - file a case from a browser wallet; permissionless and zero-fee |
+| Owner console | https://furlough-dt8b.vercel.app/owner/ - change future policy only; no method can lift an armed cut |
+| Pages mirror | https://vincentofweb3.github.io/furlough/ - the same static export, rebuilt by CI |
 | `live-runaway` | `CONFIRMED_MISBEHAVIOR`, tx `0x2e466d7a…f760014`; cut armed 18:18:59Z, lifted by the clock at 18:34:07Z |
 | `cli-check-1` | `CONFIRMED_MISBEHAVIOR`, tx `0x7dda175b…a0887b`; filed through `scripts/live_check.py`, cut armed 21:39:21Z, lifted by the clock |
 | `ui-check-1` | `CONFIRMED_MISBEHAVIOR`, tx `0x28f69b61…259379`; filed through the CLI to capture the board, 180s demo window armed 23:18:01Z, lifted by the clock at 23:21:01Z |
@@ -157,7 +158,7 @@ python3.12 scripts/live_check.py open-case \
 | `deploy/` | Deployment script |
 | `scripts/check_env.py` | Verifies the pinned GenVM bundle resolves, fetches the mirror on a fresh machine, repairs a polluted cache |
 | `scripts/live_check.py` | Live status board; files permissionless cases (zero-fee on Studionet) |
-| `viewer/` | Next.js + TypeScript static-export site: overview, mechanism, live board, evidence, wallet-connected report console, owner console. GitHub Pages workflow plus `vercel.json` |
+| `viewer/` | Next.js + TypeScript static-export site: overview, mechanism, live board, evidence, wallet-connected report console, owner console. Deployed on Vercel, mirrored by GitHub Pages |
 | `references/traceability.md` | Criterion → feature → code → test → demo moment |
 
 ---

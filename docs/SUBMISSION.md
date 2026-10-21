@@ -1,6 +1,7 @@
 # Submission package - GenLayer incentivized Builder Program
 
-Everything points.genlayer.com asks for, in the order it is asked for. Steward-reviewed on three
+Everything the GenLayer portal (https://portal.genlayer.foundation/, redirected from
+points.genlayer.com) asks for, in the order it is asked for. Steward-reviewed on three
 words - **novelty, complexity, impact** - with an 18.5% acceptance rate, so the job is to make
 the argument easy to check rather than to argue it hard.
 
@@ -32,6 +33,35 @@ Paste this into the contribution form. It is just under 150 words on purpose.
 
 ---
 
+## 1b. Portal project-application fields
+
+The current portal project page asks for more than the free-text contribution. These are the
+copy-ready values. The exact field list is only visible after wallet login - confirm labels in the
+live form.
+
+| Field | Value |
+| --- | --- |
+| Project name | **Furlough** |
+| One-liner | An adjudicated circuit breaker for autonomous AI agents: consensus cuts the spend allowance, and a clock restores it. |
+| Description | §1 above - under 150 words, covers the problem, mechanism and live evidence |
+| Logo | `viewer/public/logo.png` - 1024x1024 RGBA PNG, 24 KB (portal accepts PNG/JPEG/WebP, 128-2048 px, max 2 MB) |
+| Primary tag | **Tools & Infrastructure** (or the closest infrastructure tag the portal offers) |
+| Specific focus | Pick the two closest topics the portal offers under that tag - **agent infrastructure** first, **AI governance / adjudication** second. The mechanism sits at the intersection. |
+| Website | https://furlough-dt8b.vercel.app/ |
+| GitHub | https://github.com/vincentofweb3/furlough |
+| X / Discord / Telegram | Only if a project account exists; leave blank rather than invent one |
+| Deployment | `https://explorer-studio.genlayer.com/address/0x7Ee18844C80395E23f06Cf75D2B998723E36804f` - Studio, the network the contract is on |
+| How to test | 1) Open the status board and confirm `OPERATING`, 3 cases, 900s default. 2) `python3.12 scripts/check_env.py && python3.12 -m pytest -q` -> `87 passed`. 3) `python3.12 scripts/live_check.py status` -> live contract, three `CONFIRMED_MISBEHAVIOR` cases, every window expired. 4) Open `/verify/` for tx-by-tx evidence and `/report/` for the console. 5) Read the contract on Studio Explorer; no transaction lifted any cut. |
+| Expected verification outcome | The contract reads `OPERATING` with three `CONFIRMED_MISBEHAVIOR` cases; every cut lifted at its deadline with no transaction; the hermetic suite is `87 passed`; live reads need no wallet. |
+| Evidence | Contract page above; deploy tx https://explorer-studio.genlayer.com/tx/0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905; live txs https://explorer-studio.genlayer.com/tx/0x2e466d7a8e0d17380a7ba29ffdfb12a6ff2fec90df5ecd1c6bff2eef5f760014, https://explorer-studio.genlayer.com/tx/0x7dda175bfadf3226fbf6de9c9326fb339e19f51aa256a756cfae77f2a2a0887b, https://explorer-studio.genlayer.com/tx/0x28f69b61edd599ade8ecacae61dcdfb92b005a542ea8e36f154f2eb58c259379; https://github.com/vincentofweb3/furlough#readme; https://github.com/vincentofweb3/furlough/blob/master/references/traceability.md |
+| Demo video | Not present. The portal's `Demo URL (YouTube or X) · required` field is labelled **Agent Tank hackathon**, whose build window closed 17 September 2026. If the live form asks for a demo URL, that is an Agent Tank submission, not this Builder project package - stop and flag it. |
+
+**Form honesty note:** use §4 for the limits. Do not imply the funded value loop ran live or that
+a case was filed through MetaMask; neither happened. The three live cases were filed through the
+CLI, and the SDK write validates encoding and finality, not browser-wallet UX.
+
+---
+
 ## 2. Repository
 
 - [x] Public - committed and pushed to `github.com/vincentofweb3/furlough`
@@ -42,7 +72,7 @@ Paste this into the contribution form. It is just under 150 words on purpose.
 - [x] `references/traceability.md` - criterion → feature → code → test → demo moment
 - [x] `docs/PLAN.md` - what is done, what is blocked, what is deliberately not done
 - [x] `scripts/live_check.py` and `viewer/` - walletless live status plus wallet-signed report and
-      owner consoles, served from GitHub Pages
+      owner consoles, deployed on Vercel and mirrored on GitHub Pages
 
 **Why a reviewer can trust the test table:** during review, four claims in the safety argument
 were checked by *deleting the behaviour and confirming a test failed*. Three of the four had not
@@ -69,7 +99,7 @@ untouched - a breaker that fires on everything is not a breaker.
 
 **Capture as screenshots:** the status board in `CUT ACTIVE` and the same board after expiry
 (`lifted by the clock`, no transaction). Both live in `docs/screenshots/`, embedded in the README,
-and reproduce from https://vincentofweb3.github.io/furlough/ or `python3.12 scripts/live_check.py status`.
+and reproduce from https://furlough-dt8b.vercel.app/ or `python3.12 scripts/live_check.py status`.
 
 ---
 
@@ -125,9 +155,10 @@ No weights are invented here; the program publishes none.
 | 4 | Deposit GEN so the allowance is visibly cut and restored | **skipped by decision** - the live case ran against a zero allowance and this is not claimed. The custody accounting is proven by the hermetic deposit/draw/refund conservation tests |
 | 5 | Screenshots of the cut and of the no-transaction lift | **done** - `docs/screenshots/viewer-cut-active.png` and `viewer-lifted.png`, captured from the multi-page board against `ui-check-1`, embedded in the README |
 | 6 | Commits pushed, repo public | **done** - all commits are on `origin/master`; the repository is public |
-| 7 | GitHub OAuth verification on points.genlayer.com | human |
-| 8 | Pages for the site | **done** - Pages enabled with `build_type=workflow`; the `pages` workflow serves the site at https://vincentofweb3.github.io/furlough/ |
-| 9 | Optional Vercel deploy as the primary host | human, one import - root directory `viewer/`, framework auto-detect (Next.js); if the old project fails with `PYTHON_ENTRYPOINT_NOT_FOUND`, change the root directory and redeploy. Instructions in `docs/DEPLOY.md` |
+| 7 | GitHub OAuth verification on portal.genlayer.com | human |
+| 8 | Pages for the site | **done** - Pages enabled with `build_type=workflow`; the `pages` workflow serves the mirror at https://vincentofweb3.github.io/furlough/ |
+| 9 | Vercel deploy as the primary host | **done** - https://furlough-dt8b.vercel.app/ is live; root directory `viewer/`, framework auto-detect (Next.js), auto-deploys from `master` |
+| 10 | Submission logo | **done** - `viewer/public/logo.png`, 1024x1024 RGBA PNG, 24 KB; inside the portal's 128-2048 px and 2 MB limits |
 
 **Before submitting:** verify OAuth, open every link in the form, and check the live board renders
 after Studionet's next reset. Item 4 stays skipped and is stated plainly rather than implied away;

@@ -125,21 +125,18 @@ Step 3 is the whole product. If it needs a human to complete, the deployment is 
 static files and there is no server runtime. Reads are walletless; the report and owner consoles
 use the visitor's browser wallet for signatures. `genlayer-js` is bundled, not loaded from a CDN.
 
-**GitHub Pages.** `.github/workflows/pages.yml` runs `npm ci` and `npm run build` in `viewer/`
-with `NEXT_PUBLIC_BASE_PATH=/furlough`, then publishes `viewer/out`. The site is live at
-https://vincentofweb3.github.io/furlough/.
-
-**Vercel.** Import the repository at https://vercel.com/new, set **Root Directory** to `viewer/`,
-and leave the framework preset on automatic detection (Next.js). Every push to `master`
-auto-deploys. With the CLI:
+**Vercel (primary).** The site is live at https://furlough-dt8b.vercel.app/ with **Root Directory**
+set to `viewer/` and the framework on automatic detection (Next.js). Every push to `master`
+auto-deploys. The old `PYTHON_ENTRYPOINT_NOT_FOUND` failure is resolved by that root-directory
+fix. With the CLI:
 
 ```bash
 npx vercel --cwd viewer --prod    # the first run prompts for login
 ```
 
-If the existing Vercel project was created before the frontend was migrated, it may still have the
-root at the repository level and fail with `[PYTHON_ENTRYPOINT_NOT_FOUND]`: change **Settings →
-General → Root Directory** to `viewer`, clear any Python framework/build overrides, and redeploy.
+**GitHub Pages (mirror).** `.github/workflows/pages.yml` runs `npm ci` and `npm run build` in
+`viewer/` with `NEXT_PUBLIC_BASE_PATH=/furlough`, then publishes `viewer/out`. The site is live at
+https://vincentofweb3.github.io/furlough/.
 
 Neither host needs environment variables. The contract address and chain constants live in
 `viewer/lib/contract.ts`; `viewer/vercel.json` adds security headers.

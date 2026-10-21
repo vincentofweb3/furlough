@@ -18,13 +18,13 @@ Read this alongside [`SPEC.md`](SPEC.md) (what it is) and [`CONSENSUS.md`](CONSE
 | 7 | Hermetic gate | done - 87 tests, no network |
 | 7b | Defect review of Stages 1–7 | done - 8 findings, all fixed, all re-verified by mutation |
 | 8 | Traceability matrix | done - [`../references/traceability.md`](../references/traceability.md) |
-| 9 | Submission package | drafted - [`SUBMISSION.md`](SUBMISSION.md); live evidence now recorded |
-| live | Live deploy + smoke test | **done on Studionet** - one live case reached `CONFIRMED_MISBEHAVIOR` |
+| 9 | Submission package | ready - [`SUBMISSION.md`](SUBMISSION.md); Vercel live and logo prepared, portal submission remains human |
+| live | Live deploy + smoke test | **done on Studionet** - three live cases reached `CONFIRMED_MISBEHAVIOR` |
 | 10 | Readiness checklist | done - see below |
 
-Committed as `9c84413` and pushed to `github.com/vincentofweb3/furlough`. A Studionet deploy
-exists; see [`DEPLOY.md`](DEPLOY.md). Asimov is blocked by its per-transaction gas cap, not by
-funding.
+Committed as `c11c693` (the contract-complete milestone was `9c84413`) and pushed to
+`github.com/vincentofweb3/furlough`. A Studionet deploy exists; see [`DEPLOY.md`](DEPLOY.md).
+Asimov is blocked by its per-transaction gas cap, not by funding.
 
 ---
 
@@ -137,7 +137,7 @@ $ python3.12 -m pytest -q
 
 - [x] Defect review of Stages 1–7, with mutation verification
 - [x] Stage 8 - traceability matrix
-- [x] Stage 9 - submission package drafted
+- [x] Stage 9 - submission package ready
 - [x] `LICENSE`, CI workflow, `.env.example`
 - [x] Spec acceptance criteria checked against reality rather than left unticked
 
@@ -160,7 +160,9 @@ $ python3.12 -m pytest -q
 - [x] Screenshots of the cut and the no-transaction lift - `docs/screenshots/`, captured from
       the multi-page board against `ui-check-1`
 - [x] Make the repository public and enable GitHub Pages
-- [ ] Verify GitHub OAuth on points.genlayer.com, optionally import the site on Vercel, submit
+- [x] Deploy the site to Vercel as the primary host - https://furlough-dt8b.vercel.app/
+- [x] Submission logo - `viewer/public/logo.png`, 1024x1024 PNG, within the portal limits
+- [ ] Verify GitHub OAuth on portal.genlayer.com and submit the project application
 
 The report console has not yet filed a live case through MetaMask: the three live cases were
 filed through the CLI, and the SDK transaction above validates the same encoding and finality
