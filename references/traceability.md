@@ -62,12 +62,12 @@ Line numbers refer to `contracts/agent_breaker.py` at the commit this matrix des
 | # | Feature | Code | Test | Demo moment |
 | --- | --- | --- | --- | --- |
 | I1 | **Deployed and finalised on Studionet**, address recorded | `deploy/deploy_studionet.py`, `docs/DEPLOY.md` | live: FINALIZED, deploy tx `0x20711178…5cb905` | Paste `0x7Ee18844…` into explorer-studio.genlayer.com |
-| I2 | The full lifecycle runs live: report → cut → **self-lift** (funding skipped by decision) | whole contract | two live cases, `docs/SUBMISSION.md` §6 | The allowance returning with no transaction - witnessed twice |
+| I2 | The full lifecycle runs live: report → cut → **self-lift** (funding skipped by decision) | whole contract | three live cases, `docs/SUBMISSION.md` §6 | The allowance returning with no transaction - witnessed three times |
 | I3 | Reusable: any agent operator can deploy one against their own agent | `set_agent` 592, `__init__` 563 | `test_deploy_time_policy_accepts_the_cap` | Show the constructor args |
 | I4 | Cheap to be wrong, on purpose: capped at one hour, owner cannot extend it unbounded | `MAX_CUT_SECONDS` 69, `set_default_cut_seconds` 605 | `test_cut_outliving_a_full_hour_is_impossible`, `test_owner_cannot_set_an_out_of_range_policy` | Point at the cap |
 | I5 | Public failure argument, mapped claim-by-claim to tests | `docs/CONSENSUS.md` | - | "Section 6, the injection defences - each one names the test" |
 | I6 | Hermetic, no-network gate a reviewer can run in seconds | `tests/direct/` | 87 passing | `python3.12 -m pytest -q` |
-| I7 | Read-only status board and CLI, so anyone can watch without a wallet | `viewer/`, `scripts/live_check.py` | manual: headless browser render against the live contract, no page errors; `live_check.py status` | Open the board during an armed cut, then leave it open while the window expires |
+| I7 | Read-only multi-page site and CLI, so anyone can watch without a wallet | `viewer/`, `scripts/live_check.py` | manual: headless browser render against the live contract in both cut and lifted states, no page errors; `live_check.py status` | Open the board during an armed cut, then leave it open while the window expires |
 
 ---
 

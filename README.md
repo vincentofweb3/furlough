@@ -109,8 +109,8 @@ Deploying to Studionet is covered in [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## Live on Studionet
 
-Deployed and exercised by live validator consensus, twice. A cut has been armed twice and
-both windows ended by the clock, with no transaction anywhere near the lift.
+Deployed and exercised by live validator consensus, three times. A cut has been armed three
+times and every window ended by the clock, with no transaction anywhere near the lift.
 
 | | |
 | --- | --- |
@@ -118,8 +118,13 @@ both windows ended by the clock, with no transaction anywhere near the lift.
 | Status board | https://vincentofweb3.github.io/furlough/ - every field is a free, walletless read |
 | `live-runaway` | `CONFIRMED_MISBEHAVIOR`, tx `0x2e466d7a…f760014`; cut armed 18:18:59Z, lifted by the clock at 18:34:07Z |
 | `cli-check-1` | `CONFIRMED_MISBEHAVIOR`, tx `0x7dda175b…a0887b`; filed through `scripts/live_check.py`, cut armed 21:39:21Z, lifted by the clock |
+| `ui-check-1` | `CONFIRMED_MISBEHAVIOR`, tx `0x28f69b61…259379`; filed through the CLI to capture the board, 180s demo window armed 23:18:01Z, lifted by the clock at 23:21:01Z |
 
-![The board during an armed cut: CUT ACTIVE, countdown running](docs/screenshots/viewer-cut-active.png)
+The 180s window was a deliberate demo setting and the 900s default was restored afterwards
+(`0x8d44618c…583f55` set it, `0xa4eeaba8…ca8c88` restored it). All three windows lifted without a
+transaction.
+
+![The board during the `ui-check-1` cut: CUT ACTIVE, countdown running](docs/screenshots/viewer-cut-active.png)
 
 ![The same board after the window expired: OPERATING, lifted by the clock, no transaction](docs/screenshots/viewer-lifted.png)
 
@@ -148,14 +153,21 @@ python3.12 scripts/live_check.py open-case \
 | `docs/SPEC.md` | Scope, architecture, data flow, explicit out-of-scope |
 | `docs/DEPLOY.md` | Studionet deployment |
 | `deploy/` | Deployment script |
-| `scripts/check_env.py` | Verifies the pinned GenVM bundle resolves; repairs a polluted cache |
+| `scripts/check_env.py` | Verifies the pinned GenVM bundle resolves, fetches the mirror on a fresh machine, repairs a polluted cache |
 | `scripts/live_check.py` | Live status board; files permissionless cases (zero-fee on Studionet) |
-| `viewer/` | Static read-only status page, served through GitHub Pages |
+| `viewer/` | Static multi-page site: overview, mechanism, live board, evidence. GitHub Pages workflow plus `vercel.json` |
 | `references/traceability.md` | Criterion → feature → code → test → demo moment |
 
 ---
 
 ## Tests
+
+On a fresh machine, seed the pinned SDK bundle once. Upstream removed the tarball that
+`genlayer-test` 0.29.2 requests, so the repository mirrors it and verifies a pinned sha256:
+
+```bash
+python3.12 scripts/check_env.py --fetch
+```
 
 ```bash
 $ python3.12 -m pytest -q
@@ -209,11 +221,11 @@ Three properties fall out of using consensus rather than a model call:
   the obvious fix and the first thing to build after this.
 - **Bands are hand-calibrated** against fixtures, not derived from real agent traffic.
 - **The hermetic gate does not prove two different real models agree.** It uses a deterministic
-  stand-in. Two live cases finalized under validator consensus, but two cases are not proof.
+  stand-in. Three live cases finalized under validator consensus, but three cases are not proof.
 - **Single agent per contract.** Swarms are out of scope by decision.
 - **The status board is read-only, and came after the contract.** It renders free reads and holds
-  no keys; there is no write UI by decision. The argument stands on the contract, the tests and
-  the live transactions, not on the page.
+  no keys; there is no write UI by decision. The site's argument stands on the contract, the
+  tests and the live transactions, not on the pages.
 
 Full list with reasoning: [`docs/CONSENSUS.md` §11](docs/CONSENSUS.md).
 

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Furlough - live status board</title>
+<meta name="description" content="Live status of the Furlough adjudicated circuit breaker on GenLayer Studionet: allowance, cut window, and the public case record.">
+<meta property="og:title" content="Furlough - live status board">
+<meta property="og:description" content="The cut is performed by consensus. The lift is performed by a clock.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <svg width="20" height="20" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#11161f"/><path d="M36 8 20 36h10l-4 20 20-30H35l1-18Z" fill="#6f9bff"/></svg>
+      Furlough
+    </a>
+    <nav class="site-nav">
+      <a href="index.html">Overview</a>
+      <a href="how.html">How it works</a>
+      <a href="live.html" class="here">Live board</a>
+      <a href="verify.html">Verify</a>
+    </nav>
+    <a class="header-cta" href="https://github.com/vincentofweb3/furlough" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero" style="padding-bottom: 10px;">
+    <div class="wrap">
+      <span class="kicker">Live - Studionet</span>
+      <h1 style="font-size: clamp(30px, 4.2vw, 44px); max-width: 24ch;">The breaker, right now.</h1>
+      <p class="lede">Every field on this page is a free read against the deployed contract. Refreshes every 15 seconds. No wallet, no API key, no backend.</p>
+      <div class="chips">
+        <span class="chip">Studionet - chain 61999</span>
+        <span class="chip">reads need no wallet</span>
+        <a class="chip" id="contract-link" href="https://explorer-studio.genlayer.com" target="_blank" rel="noopener">contract</a>
+        <a class="chip" href="verify.html">evidence and addresses</a>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top: 0;">
+    <div class="wrap">
+      <div id="error" class="error" hidden></div>
+
+      <div class="breaker">
+        <div class="pill" id="state-pill">connecting</div>
+        <div>
+          <div class="countdown" id="countdown"></div>
+          <div class="muted" id="cut-meta">reading the contract...</div>
+        </div>
+      </div>
+
+      <h2 style="margin-top: 42px;">Custody and control</h2>
+      <div class="grid" id="facts"></div>
+
+      <h2 style="margin-top: 42px;">Case record</h2>
+      <div id="cases"><div class="empty">reading...</div></div>
+
+      <p class="muted" style="margin-top: 28px;">
+        A cut is enforced by the contract itself: while the window is open, <code>draw()</code> is
+        refused before any state changes. When the window passes, the allowance restores itself with
+        no transaction and no human. Last refreshed <span id="updated">-</span>.
+        Source: <a href="https://github.com/vincentofweb3/furlough" target="_blank" rel="noopener">github.com/vincentofweb3/furlough</a>.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h4>Furlough</h4>
+        <p class="small">An adjudicated circuit breaker for autonomous AI agents, built as a GenLayer Intelligent Contract.</p>
+      </div>
+      <div>
+        <h4>Live</h4>
+        <a href="live.html">Status board</a>
+        <a href="verify.html">Contract and evidence</a>
+        <a href="https://explorer-studio.genlayer.com" target="_blank" rel="noopener">Studio explorer</a>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <a href="https://github.com/vincentofweb3/furlough#readme" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/CONSENSUS.md" target="_blank" rel="noopener">Safety argument</a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/SPEC.md" target="_blank" rel="noopener">Specification</a>
+      </div>
+      <div>
+        <h4>Contract</h4>
+        <a href="verify.html"><code>0x7Ee1…804f</code></a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/LICENSE" target="_blank" rel="noopener">MIT licence</a>
+        <span class="small">Studionet, chain 61999</span>
+      </div>
+    </div>
+    <div class="fine">Not audited. Testnet only - do not use with real value. Names and figures are read live from the deployed contract.</div>
+  </div>
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

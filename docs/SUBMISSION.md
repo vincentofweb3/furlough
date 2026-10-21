@@ -118,17 +118,18 @@ No weights are invented here; the program publishes none.
 | # | Blocker | State |
 | --- | --- | --- |
 | 1 | Deploy | **done** - contract `0x7Ee18844C80395E23f06Cf75D2B998723E36804f`, tx `0x20711178…5cb905`, FINALIZED. No faucet needed: Studionet is zero-fee |
-| 2 | Live case under real validator LLMs | **done** - `CONFIRMED_MISBEHAVIOR`, cut armed, tx `0x2e466d7a…f760014`, FINALIZED in 53s; repeated as `cli-check-1` through the CLI, tx `0x7dda175b…a0887b` |
-| 3 | Confirm the cut lifts by itself after 900s, no transaction | **done twice** - `2026-10-20T18:34:07Z` for `live-runaway` and `2026-10-20T21:54:21Z` for `cli-check-1`; `is_cut()` false, `seconds_remaining()` 0, no transaction in between either time |
+| 2 | Live case under real validator LLMs | **done three times** - `CONFIRMED_MISBEHAVIOR`; `live-runaway` tx `0x2e466d7a…f760014` (FINALIZED in 53s), `cli-check-1` tx `0x7dda175b…a0887b`, and `ui-check-1` tx `0x28f69b61…259379`, each filed through the CLI |
+| 3 | Confirm the cut lifts by itself, no transaction | **done three times** - `2026-10-20T18:34:07Z` for `live-runaway`, `2026-10-20T21:54:21Z` for `cli-check-1`, `2026-10-20T23:21:01Z` for `ui-check-1`; `is_cut()` false, `seconds_remaining()` 0, no transaction in between any of them |
 | 4 | Deposit GEN so the allowance is visibly cut and restored | **skipped by decision** - the live case ran against a zero allowance and this is not claimed. The custody accounting is proven by the hermetic deposit/draw/refund conservation tests |
-| 5 | Screenshots of the cut and of the no-transaction lift | **done** - `docs/screenshots/viewer-cut-active.png` and `viewer-lifted.png`, embedded in the README |
-| 6 | First commit, then push, then make public | **partly** - `9c84413` is on origin; the docs-normalization, viewer and CLI commits are local and need one `git push`; making the repository public is next |
+| 5 | Screenshots of the cut and of the no-transaction lift | **done** - `docs/screenshots/viewer-cut-active.png` and `viewer-lifted.png`, captured from the current multi-page board against `ui-check-1`, embedded in the README |
+| 6 | Commits pushed, repo public | **done** - all commits are on `origin/master`; the repository is public |
 | 7 | GitHub OAuth verification on points.genlayer.com | human |
-| 8 | GitHub Pages for the viewer | **one click** - Settings → Pages → Source: GitHub Actions; the `pages` workflow then serves `viewer/` at https://vincentofweb3.github.io/furlough/ |
+| 8 | Pages for the site | **done** - Pages enabled with `build_type=workflow`; the `pages` workflow serves the site at https://vincentofweb3.github.io/furlough/ |
+| 9 | Optional Vercel deploy as the primary host | human, one import - root directory `viewer/`, framework preset "Other"; instructions in `docs/DEPLOY.md` |
 
-**Before submitting:** make the repo public, enable Pages, verify OAuth, and open every link in the
-form. Item 4 stays skipped and is stated plainly rather than implied away; the live records above
-are the claim, and a link that 404s is worse than no link.
+**Before submitting:** verify OAuth, open every link in the form, and check the live board renders
+after Studionet's next reset. Item 4 stays skipped and is stated plainly rather than implied away;
+the live records above are the claim, and a link that 404s is worse than no link.
 
 Asimov is not a fallback: its per-transaction gas cap is 2^24, and this source needs 33.2M gas
 there. The 5 GEN sent to the deployer on Asimov cannot deploy this contract.

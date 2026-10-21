@@ -22,6 +22,27 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "genlayer-test[sim]==0.29.2" "genlayer-py==0.16.3" pytest
 
+      # gltest 0.29.2 hard-codes genvm-universal.tar.xz from the v0.3.0-rc7 release, and
+      # upstream re-cut that release without it. The mirror below is byte-identical and pinned
+      # by checksum; the cache keeps normal runs from re-downloading 135 MB.
+      - name: Restore the pinned GenVM bundle
+        id: genvm-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/gltest-direct/genvm-universal-v0.3.0-rc7.tar.xz
+          key: genvm-universal-v0.3.0-rc7-e218a185
+
+      - name: Download the pinned GenVM bundle
+        if: steps.genvm-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/gltest-direct
+          curl -fsSL --retry 3 -o ~/.cache/gltest-direct/genvm-universal-v0.3.0-rc7.tar.xz \
+            https://github.com/vincentofweb3/furlough/releases/download/genvm-sdk-v0.3.0-rc7/genvm-universal-v0.3.0-rc7.tar.xz
+
+      - name: Verify the pinned GenVM bundle
+        run: |
+          echo "e218a1854214681560351051f76fe2b878545cf3409455ef372d57014a88ca67  $HOME/.cache/gltest-direct/genvm-universal-v0.3.0-rc7.tar.xz" | sha256sum -c -
+
       # The contract must not need a network, an API key or a funded wallet to be tested.
       - name: Run the suite
         run: python -m pytest -q

@@ -151,12 +151,14 @@ $ python3.12 -m pytest -q
       against a zero allowance; the value loop is covered by the hermetic custody tests, not live.
 - [x] Confirm the cut lifts by itself with no transaction - `is_cut()` false and
       `seconds_remaining()` 0 at `2026-10-20T18:34:07Z`, with no transaction in between
-- [x] A second live case filed through `scripts/live_check.py` (`cli-check-1`) - same verdict,
-      and its 900-second window also lifted by the clock
-- [x] Read-only status board (`viewer/`) and live CLI (`scripts/live_check.py`), so a steward
+- [x] A second and third live case filed through `scripts/live_check.py` (`cli-check-1`,
+      `ui-check-1`) - same verdict, and every window lifted by the clock
+- [x] Multi-page static site (`viewer/`) and live CLI (`scripts/live_check.py`), so a steward
       can see the breaker without reading the contract
-- [x] Screenshots of the cut and the no-transaction lift - `docs/screenshots/`, embedded in the README
-- [ ] Make the repo public, verify GitHub OAuth on points.genlayer.com, submit
+- [x] Screenshots of the cut and the no-transaction lift - `docs/screenshots/`, captured from
+      the current site against `ui-check-1`
+- [x] Make the repository public and enable GitHub Pages
+- [ ] Verify GitHub OAuth on points.genlayer.com, optionally import the site on Vercel, submit
 
 **Deliberately not done, and why:**
 

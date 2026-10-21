@@ -3,94 +3,255 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Furlough - live status board</title>
-<meta name="description" content="Live status of the Furlough adjudicated circuit breaker on GenLayer Studionet.">
-<style>
-  :root {
-    --bg: #0b0e12; --panel: #12161d; --line: #232a35;
-    --text: #e6e9ee; --dim: #8b95a5;
-    --green: #3ddc84; --red: #ff5d5d; --amber: #f2b544; --accent: #7aa2ff;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  main { max-width: 1000px; margin: 0 auto; padding: 32px 20px 64px; }
-  header { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
-  h1 { margin: 0; font-size: 24px; letter-spacing: .4px; }
-  h1 span { color: var(--accent); font-weight: 400; }
-  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin: 36px 0 14px; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--dim); white-space: nowrap; }
-  .error { border: 1px solid var(--red); color: var(--red); border-radius: 8px; padding: 12px 14px; margin-top: 20px; font-size: 13px; }
-  .breaker { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 24px; }
-  .pill { border-radius: 8px; padding: 10px 16px; font-size: 18px; letter-spacing: 2px; border: 1px solid; }
-  .pill.open { color: var(--green); border-color: var(--green); }
-  .pill.cut { color: var(--red); border-color: var(--red); background: rgba(255,93,93,.07); }
-  .countdown { font-size: 28px; color: var(--red); min-height: 34px; }
-  .muted { color: var(--dim); font-size: 13px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
-  .card .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .card .value { font-size: 15px; word-break: break-all; }
-  .case { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
-  .case.confirmed { border-left-color: var(--red); }
-  .case.false-report { border-left-color: var(--dim); }
-  .case.insufficient { border-left-color: var(--amber); }
-  .case .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; justify-content: space-between; }
-  .case .id { font-size: 16px; }
-  .badge { font-size: 12px; letter-spacing: 1px; border-radius: 6px; padding: 2px 8px; border: 1px solid; }
-  .badge.confirmed { color: var(--red); border-color: var(--red); }
-  .badge.false-report { color: var(--dim); border-color: var(--dim); }
-  .badge.insufficient { color: var(--amber); border-color: var(--amber); }
-  .case .claim { margin: 10px 0 6px; }
-  .case .row { color: var(--dim); font-size: 13px; margin-top: 4px; }
-  .sig { color: var(--dim); font-size: 12px; word-break: break-all; margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
-  details { margin-top: 8px; }
-  summary { cursor: pointer; color: var(--dim); font-size: 13px; }
-  footer { margin-top: 48px; border-top: 1px solid var(--line); padding-top: 16px; color: var(--dim); font-size: 13px; }
-  .empty { color: var(--dim); border: 1px dashed var(--line); border-radius: 10px; padding: 18px; text-align: center; }
-</style>
+<title>Furlough - a circuit breaker for autonomous AI agents</title>
+<meta name="description" content="Furlough is a GenLayer Intelligent Contract that adjudicates an AI agent's own telemetry and cuts its spend allowance by validator consensus, until a deadline that expires on its own.">
+<meta property="og:title" content="Furlough - a circuit breaker for autonomous AI agents">
+<meta property="og:description" content="The cut is performed by consensus. The lift is performed by a clock. Nobody does either.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
 </head>
 <body>
-<main>
-  <header>
-    <h1>Furlough <span>/ live status board</span></h1>
-    <div class="chips">
-      <span class="chip">Studionet - chain 61999</span>
-      <span class="chip">reads need no wallet</span>
-      <a class="chip" id="contract-link" href="#" target="_blank" rel="noopener">contract</a>
-    </div>
-  </header>
 
-  <div id="error" class="error" hidden></div>
-
-  <div class="breaker">
-    <div class="pill" id="state-pill">connecting</div>
-    <div>
-      <div class="countdown" id="countdown"></div>
-      <div class="muted" id="cut-meta">reading the contract...</div>
-    </div>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <svg width="20" height="20" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#11161f"/><path d="M36 8 20 36h10l-4 20 20-30H35l1-18Z" fill="#6f9bff"/></svg>
+      Furlough
+    </a>
+    <nav class="site-nav">
+      <a href="index.html" class="here">Overview</a>
+      <a href="how.html">How it works</a>
+      <a href="live.html">Live board</a>
+      <a href="verify.html">Verify</a>
+    </nav>
+    <a class="header-cta" href="https://github.com/vincentofweb3/furlough" target="_blank" rel="noopener">GitHub</a>
   </div>
+</header>
 
-  <h2>Custody and control</h2>
-  <div class="grid" id="facts"></div>
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <span class="kicker">Live on GenLayer Studionet</span>
+      <h1>Nobody pulls the brake. <em>Nobody lets it go.</em></h1>
+      <p class="lede">
+        Furlough is an Intelligent Contract that audits an autonomous agent's own telemetry,
+        asks validator consensus whether it misbehaved, and cuts its spend allowance until a
+        deadline that expires on its own. <strong>No kill-switch operator. No unlock
+        transaction.</strong>
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="live.html">Watch the live breaker</a>
+        <a class="btn btn-ghost" href="how.html">How it works</a>
+      </div>
 
-  <h2>Case record</h2>
-  <div id="cases"><div class="empty">reading...</div></div>
+      <div class="live-strip">
+        <span class="state" id="hero-state">reading...</span>
+        <div class="facts">
+          <span class="fact">cases filed <b id="hero-cases">-</b></span>
+          <span class="fact">cuts armed <b id="hero-cuts">-</b></span>
+          <span class="fact">default window <b id="hero-window">-</b></span>
+          <span class="fact">network <b>Studionet 61999</b></span>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <footer>
-    A cut is enforced by the contract itself: while the window is open, <code>draw()</code> is
-    refused before any state changes. When the window passes, the allowance restores itself with
-    no transaction and no human. Every field on this page is a free read against
-    <a id="explorer-link" href="https://explorer-studio.genlayer.com" target="_blank" rel="noopener">GenLayer Studio</a>.
-    Source: <a id="repo-link" href="https://github.com/vincentofweb3/furlough" target="_blank" rel="noopener">github.com/vincentofweb3/furlough</a>.
-    <br>Last refreshed <span id="updated">-</span>.
-  </footer>
+  <section>
+    <div class="wrap">
+      <h2>The failure mode</h2>
+      <p class="section-sub">
+        An agent holding a real spend allowance can be turned against itself. The agent that is
+        misbehaving is also the only party positioned to notice it - and the operator that funded
+        it is the party least likely to admit it.
+      </p>
+      <div class="grid three">
+        <div class="card">
+          <div class="label">Input</div>
+          <h3>Prompt injection</h3>
+          <p class="small">A tool result, a fetched page, a dependency reply - text the agent treats as instructions and forwards into its next action.</p>
+        </div>
+        <div class="card">
+          <div class="label">Environment</div>
+          <h3>Dependency rot</h3>
+          <p class="small">An API starts returning garbage, and the agent keeps spending against it because nothing in its loop distinguishes failure from work.</p>
+        </div>
+        <div class="card">
+          <div class="label">Behaviour</div>
+          <h3>Retry loops</h3>
+          <p class="small">One failing endpoint, dozens of attempts, an allowance draining in a pattern every monitoring tool will call "traffic".</p>
+        </div>
+      </div>
+      <p class="section-sub" style="margin-top: 26px; margin-bottom: 0;">
+        Today's controls are advisory. A human watches a dashboard and pulls a kill switch. A rate
+        limiter caps throughput but cannot tell looping from working hard. An alert waits for
+        someone to act. In every case the action is performed by a human, or not performed at all.
+        Furlough removes the human from both ends and replaces them with consensus over measured
+        evidence.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>How the judgement is made</h2>
+      <p class="section-sub">Three stages, following the GenLayer idiom. Only one of them involves a model, and the model's words never cross the consensus boundary.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="no">1</div>
+          <div>
+            <h3>Reduce before consensus</h3>
+            <p>The leader fetches the agent's journal and collapses it to a banded, identifier-free digest. Timestamps, exact counts and raw IDs are dropped; concentration ratios survive. A journal that merely grew reduces byte-identically.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="no">2</div>
+          <div>
+            <h3>Ask for one enum</h3>
+            <p>Validators independently re-fetch, re-reduce and re-derive, then compare <code>CONFIRMED_MISBEHAVIOR</code>, <code>FALSE_REPORT</code> or <code>INSUFFICIENT_EVIDENCE</code>. Rationale is free text two models will never write identically, so it is recorded and never compared.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="no">3</div>
+          <div>
+            <h3>Enforce with a clock</h3>
+            <p>A confirmed verdict sets the allowance to zero until <code>expires_at</code>. When the window passes, <code>allowance_remaining()</code> reads the clock and returns the full balance again. No method lifts a cut; there is nothing to sign.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Three verdicts, one of them acts</h2>
+      <p class="section-sub">The output space is deliberately small. A breaker that fires on everything is not a breaker, and a model that can invent a fourth option is not an oracle.</p>
+      <div class="grid three">
+        <div class="card">
+          <span class="badge confirmed">CONFIRMED_MISBEHAVIOR</span>
+          <h3 style="margin-top: 14px;">Allowance to zero</h3>
+          <p class="small">The evidence shows the bound agent looping, spraying or otherwise burning its allowance. The custodied funds stay put; access is suspended until the deadline.</p>
+        </div>
+        <div class="card">
+          <span class="badge false-report">FALSE_REPORT</span>
+          <h3 style="margin-top: 14px;">Nothing happens</h3>
+          <p class="small">The journal is reachable and describes ordinary work. The case is recorded publicly; the allowance is untouched.</p>
+        </div>
+        <div class="card">
+          <span class="badge insufficient">INSUFFICIENT_EVIDENCE</span>
+          <h3 style="margin-top: 14px;">Nothing happens</h3>
+          <p class="small">The journal is missing, unreadable or inconclusive. The contract never treats "could not tell" as "guilty".</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Why this needs consensus</h2>
+      <div class="grid three">
+        <div class="card">
+          <div class="label">Permissionless</div>
+          <h3>The operator cannot suppress a case</h3>
+          <p class="small">Anyone may file one. A breaker only the trusting owner can trigger is not a breaker.</p>
+        </div>
+        <div class="card">
+          <div class="label">Bounded</div>
+          <h3>Being wrong is cheap</h3>
+          <p class="small">A wrong cut is capped at one hour and reverses itself with no transaction. Recovery is the default, not an action.</p>
+        </div>
+        <div class="card">
+          <div class="label">Deterministic</div>
+          <h3>No model where exactness matters</h3>
+          <p class="small">Accounting, expiry and access control are plain contract logic. The model only chooses among three words.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Evidence, not adjectives</h2>
+      <p class="section-sub">Every claim on this site has a public artifact behind it: a finalized transaction, a test, or a documented limit.</p>
+      <div class="grid four">
+        <div class="card"><span class="num">3</span><div class="num-note">live cases finalized with CONFIRMED_MISBEHAVIOR</div></div>
+        <div class="card"><span class="num">3</span><div class="num-note">cuts lifted by the clock, zero transactions</div></div>
+        <div class="card"><span class="num">87</span><div class="num-note">hermetic tests, no network, no API key</div></div>
+        <div class="card"><span class="num">1</span><div class="num-note">contract. No backend, no oracle, no keeper.</div></div>
+      </div>
+      <div class="cta-row" style="margin-top: 24px;">
+        <a class="btn btn-ghost" href="verify.html">See the transactions and test commands</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Read the contract. Dispute the argument.</h2>
+      <p class="section-sub">The safety case is written to be attacked, claim by claim, with each one mapped to the test that would fail if it broke.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/vincentofweb3/furlough/blob/master/contracts/agent_breaker.py" target="_blank" rel="noopener">Read the Intelligent Contract</a>
+        <a class="btn btn-ghost" href="https://github.com/vincentofweb3/furlough/blob/master/docs/CONSENSUS.md" target="_blank" rel="noopener">Safety argument</a>
+        <a class="btn btn-ghost" href="live.html">Live board</a>
+      </div>
+    </div>
+  </section>
 </main>
-<script type="module" src="./app.js"></script>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h4>Furlough</h4>
+        <p class="small">An adjudicated circuit breaker for autonomous AI agents, built as a GenLayer Intelligent Contract.</p>
+      </div>
+      <div>
+        <h4>Live</h4>
+        <a href="live.html">Status board</a>
+        <a href="verify.html">Contract and evidence</a>
+        <a href="https://explorer-studio.genlayer.com" target="_blank" rel="noopener">Studio explorer</a>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <a href="https://github.com/vincentofweb3/furlough#readme" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/CONSENSUS.md" target="_blank" rel="noopener">Safety argument</a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/SPEC.md" target="_blank" rel="noopener">Specification</a>
+      </div>
+      <div>
+        <h4>Contract</h4>
+        <a href="verify.html"><code>0x7Ee1…804f</code></a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/LICENSE" target="_blank" rel="noopener">MIT licence</a>
+        <span class="small">Studionet, chain 61999</span>
+      </div>
+    </div>
+    <div class="fine">Not audited. Testnet only - do not use with real value. Names and figures are read live from the deployed contract.</div>
+  </div>
+</footer>
+
+<script type="module">
+const CDN = "https://esm.sh/genlayer-js@1.1.8";
+const CHAINS = "https://esm.sh/genlayer-js@1.1.8/chains";
+const CONTRACT = "0x7Ee18844C80395E23f06Cf75D2B998723E36804f";
+
+const pill = document.getElementById("hero-state");
+try {
+  const { createClient } = await import(CDN);
+  const { studionet } = await import(CHAINS);
+  const client = createClient({ chain: studionet });
+  const stats = await client.readContract({ address: CONTRACT, functionName: "stats" });
+  const cut = Boolean(stats.cut_active);
+  pill.textContent = cut ? "CUT ACTIVE" : "OPERATING";
+  pill.className = "state " + (cut ? "cut" : "open");
+  pill.title = cut ? `until ${stats.cut_until}` : "no cut window open";
+  document.getElementById("hero-cases").textContent = stats.cases;
+  document.getElementById("hero-cuts").textContent = stats.cuts;
+  document.getElementById("hero-window").textContent = `${stats.default_cut_seconds}s`;
+} catch (error) {
+  pill.textContent = "live read unavailable";
+  pill.className = "state";
+  pill.title = String(error.message ?? error);
+}
+</script>
+
 </body>
 </html>

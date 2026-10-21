@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify Furlough - contract, transactions, tests</title>
+<meta name="description" content="Every claim about Furlough mapped to a public artifact: the deployed contract, finalized transactions, the live case record, and the hermetic test suite.">
+<meta property="og:title" content="Verify Furlough">
+<meta property="og:description" content="Contract, transactions and tests behind the live circuit breaker.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html">
+      <svg width="20" height="20" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#11161f"/><path d="M36 8 20 36h10l-4 20 20-30H35l1-18Z" fill="#6f9bff"/></svg>
+      Furlough
+    </a>
+    <nav class="site-nav">
+      <a href="index.html">Overview</a>
+      <a href="how.html">How it works</a>
+      <a href="live.html">Live board</a>
+      <a href="verify.html" class="here">Verify</a>
+    </nav>
+    <a class="header-cta" href="https://github.com/vincentofweb3/furlough" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero" style="padding-bottom: 24px;">
+    <div class="wrap">
+      <span class="kicker">Evidence</span>
+      <h1>Don't take this site's word for it.</h1>
+      <p class="lede">
+        Every claim about Furlough maps to an artifact you can open: a finalized transaction, a
+        contract method, a test, or a limit stated openly. If something here cannot be checked, it
+        should not be believed.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-ghost" href="live.html">Live board</a>
+        <a class="btn btn-ghost" href="https://github.com/vincentofweb3/furlough/blob/master/docs/CONSENSUS.md" target="_blank" rel="noopener">Safety argument</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>The deployment</h2>
+      <div class="grid two">
+        <div class="card">
+          <div class="label">Intelligent Contract</div>
+          <div class="addr" id="contract-address">0x7Ee18844C80395E23f06Cf75D2B998723E36804f</div>
+          <div class="cta-row" style="margin-top: 14px;">
+            <button class="btn btn-ghost" type="button" data-copy="0x7Ee18844C80395E23f06Cf75D2B998723E36804f">Copy address</button>
+            <a class="btn btn-ghost" href="https://explorer-studio.genlayer.com" target="_blank" rel="noopener">Open explorer</a>
+          </div>
+        </div>
+        <div class="card">
+          <div class="label">Network</div>
+          <div class="value">GenLayer Studionet - chain 61999</div>
+          <p class="small" style="margin-bottom: 0;">Zero fees for writes; reads need no wallet. Deployed 2026-10-20T19:50:06Z.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Finalized transactions</h2>
+      <p class="section-sub">Six transactions exist for this deployment: the deploy, three case filings, and two owner policy changes used to shorten the window for a demo. Everything else is a read.</p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Event</th><th>Transaction</th><th>Result</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Deploy</td>
+              <td><a href="https://explorer-studio.genlayer.com/tx/0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905" target="_blank" rel="noopener"><code>0x20711178…5cb905</code></a></td>
+              <td>FINALIZED</td>
+            </tr>
+            <tr>
+              <td>Case <code>live-runaway</code></td>
+              <td><a href="https://explorer-studio.genlayer.com/tx/0x2e466d7a8e0d17380a7ba29ffdfb12a6ff2fec90df5ecd1c6bff2eef5f760014" target="_blank" rel="noopener"><code>0x2e466d7a…f760014</code></a></td>
+              <td>FINALIZED - CONFIRMED_MISBEHAVIOR</td>
+            </tr>
+            <tr>
+              <td>Case <code>cli-check-1</code></td>
+              <td><a href="https://explorer-studio.genlayer.com/tx/0x7dda175bfadf3226fbf6de9c9326fb339e19f51aa256a756cfae77f2a2a0887b" target="_blank" rel="noopener"><code>0x7dda175b…a0887b</code></a></td>
+              <td>FINALIZED - CONFIRMED_MISBEHAVIOR</td>
+            </tr>
+            <tr>
+              <td>Window set to 180s</td>
+              <td><a href="https://explorer-studio.genlayer.com/tx/0x8d44618c1242dcb06a4133c575d6248fddaf59a372fdd70841a1f812bc583f55" target="_blank" rel="noopener"><code>0x8d44618c…583f55</code></a></td>
+              <td>FINALIZED - owner policy change</td>
+            </tr>
+            <tr>
+              <td>Case <code>ui-check-1</code></td>
+              <td><a href="https://explorer-studio.genlayer.com/tx/0x28f69b61edd599ade8ecacae61dcdfb92b005a542ea8e36f154f2eb58c259379" target="_blank" rel="noopener"><code>0x28f69b61…259379</code></a></td>
+              <td>FINALIZED - CONFIRMED_MISBEHAVIOR</td>
+            </tr>
+            <tr>
+              <td>Window restored to 900s</td>
+              <td><a href="https://explorer-studio.genlayer.com/tx/0xa4eeaba8c17399ffdfa0ef274fdf455a5ae0e59c505930162d8f945cc2ca8c88" target="_blank" rel="noopener"><code>0xa4eeaba8…ca8c88</code></a></td>
+              <td>FINALIZED - owner policy change</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top: 14px;">Full hashes are in <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/DEPLOY.md" target="_blank" rel="noopener">docs/DEPLOY.md</a>. The case record on the <a href="live.html">live board</a> is read from contract storage, not from this page.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Three cuts, no unlock transactions</h2>
+      <p class="section-sub">The product claim, as recorded on chain. "Lifted" means the deadline passed and the allowance returned by itself.</p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Case</th><th>Armed</th><th>Deadline</th><th>Lifted</th><th>Unlock txs</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>live-runaway</td><td>18:18:59Z</td><td>18:33:59Z</td><td>by the clock at 18:34:07Z</td><td>0</td></tr>
+            <tr><td>cli-check-1</td><td>21:39:21Z</td><td>21:54:21Z</td><td>by the clock at 21:54:21Z</td><td>0</td></tr>
+            <tr><td>ui-check-1</td><td>23:18:01Z</td><td>23:21:01Z</td><td>by the clock at 23:21:01Z</td><td>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top: 14px;"><code>ui-check-1</code> ran in a deliberately short 180s window so the board could be captured in both states; the 900s default was restored in a separate policy transaction. No method exists that lifts a cut early. The only write after a cut is <code>reap_expired</code>, which records <code>lifted_at</code> for the public log and changes no allowance.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Read it yourself</h2>
+      <p class="section-sub">The CLI in the repository reads the same state as this page. It needs no wallet for status.</p>
+      <pre><code>git clone https://github.com/vincentofweb3/furlough
+cd furlough
+python3.12 scripts/live_check.py status</code></pre>
+      <p class="section-sub" style="margin-bottom: 0;">Filing a case is permissionless; any testnet key works and Studionet charges no gas. See <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/DEPLOY.md" target="_blank" rel="noopener">docs/DEPLOY.md</a> for the full smoke test.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Tests</h2>
+      <p class="section-sub">The suite is hermetic: no network, no API key, no live model. A deterministic stand-in is keyed on the measured bands, so the gate is meaningful without pretending to prove inter-model agreement.</p>
+      <pre><code>python3.12 -m pytest -q
+87 passed</code></pre>
+      <div class="grid three">
+        <div class="card"><span class="num">87</span><div class="num-note">tests, run in seconds</div></div>
+        <div class="card"><span class="num">0</span><div class="num-note">network calls in the gate</div></div>
+        <div class="card"><span class="num">1</span><div class="num-note">CI workflow running the same command on every push</div></div>
+      </div>
+      <p class="small" style="margin-top: 14px;">Each safety claim in <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/CONSENSUS.md" target="_blank" rel="noopener">CONSENSUS.md</a> names the test that would fail if it broke. Claim-to-test mapping: <a href="https://github.com/vincentofweb3/furlough/blob/master/references/traceability.md" target="_blank" rel="noopener">references/traceability.md</a>.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>What is not shown</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>No live value loop</h3>
+          <p class="small">The deployed contract has <code>deposited = 0</code>. Custody and draw semantics are covered by hermetic tests, not by a live funded agent. A live demo needs a funded key and a real agent journal.</p>
+        </div>
+        <div class="card">
+          <h3>No real inter-model agreement proof</h3>
+          <p class="small">The consensus path was exercised live; the hermetic gate uses a deterministic test model. Proving two real models agree on borderline evidence needs a production network.</p>
+        </div>
+        <div class="card">
+          <h3>Not audited</h3>
+          <p class="small">This is a testnet contribution. Do not use it with real value.</p>
+        </div>
+        <div class="card">
+          <h3>Journal trust</h3>
+          <p class="small">Validators fetch the journal independently, but nothing proves the agent authored it. Signed digests are the documented next step.</p>
+        </div>
+      </div>
+      <div class="cta-row" style="margin-top: 24px;">
+        <a class="btn btn-primary" href="https://github.com/vincentofweb3/furlough/blob/master/docs/CONSENSUS.md#11-known-limits" target="_blank" rel="noopener">All known limits</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h4>Furlough</h4>
+        <p class="small">An adjudicated circuit breaker for autonomous AI agents, built as a GenLayer Intelligent Contract.</p>
+      </div>
+      <div>
+        <h4>Live</h4>
+        <a href="live.html">Status board</a>
+        <a href="verify.html">Contract and evidence</a>
+        <a href="https://explorer-studio.genlayer.com" target="_blank" rel="noopener">Studio explorer</a>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <a href="https://github.com/vincentofweb3/furlough#readme" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/CONSENSUS.md" target="_blank" rel="noopener">Safety argument</a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/docs/SPEC.md" target="_blank" rel="noopener">Specification</a>
+      </div>
+      <div>
+        <h4>Contract</h4>
+        <a href="verify.html"><code>0x7Ee1…804f</code></a>
+        <a href="https://github.com/vincentofweb3/furlough/blob/master/LICENSE" target="_blank" rel="noopener">MIT licence</a>
+        <span class="small">Studionet, chain 61999</span>
+      </div>
+    </div>
+    <div class="fine">Not audited. Testnet only - do not use with real value. Names and figures are read live from the deployed contract.</div>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll("[data-copy]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(button.dataset.copy);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Select and copy manually";
+    }
+    setTimeout(() => { button.textContent = "Copy address"; }, 1600);
+  });
+});
+</script>
+</body>
+</html>

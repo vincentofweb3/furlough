@@ -42,8 +42,8 @@ Deployed and exercised on Studionet on 2026-10-20:
 | --- | --- |
 | contract | `0x7Ee18844C80395E23f06Cf75D2B998723E36804f` |
 | deploy tx | `0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905` - FINALIZED |
-| live case tx | `0x2e466d7a8e0d17380a7ba29ffdfb12a6ff2fec90df5ecd1c6bff2eef5f760014` - FINALIZED |
-| live verdict | `CONFIRMED_MISBEHAVIOR`, cut armed for 900s, real validator LLMs |
+| live cases | `live-runaway` tx `0x2e466d7a…f760014`, `cli-check-1` tx `0x7dda175b…a0887b`, `ui-check-1` tx `0x28f69b61…259379` - all FINALIZED |
+| live verdict | `CONFIRMED_MISBEHAVIOR` three times; every cut lifted by the clock with no transaction |
 
 The contract **must** carry the runner header on line 1. Without it Studionet finalizes the
 deploy and then cannot execute the contract at all (`invalid_contract absent_runner_comment`),
@@ -97,7 +97,7 @@ In contract terms:
 allowance_remaining() == deposited
 
 # 2. open a case against a runaway journal, wait for FINALIZED
-#    LIVE: live-runaway and cli-check-1 -- verdict CONFIRMED_MISBEHAVIOR, is_cut() == true
+#    LIVE: live-runaway, cli-check-1 and ui-check-1 -- all CONFIRMED_MISBEHAVIOR, is_cut() == true
 get_verdict("live-runaway") == "CONFIRMED_MISBEHAVIOR"
 is_cut() == true
 allowance_remaining() == 0
@@ -105,18 +105,40 @@ allowance_remaining() == 0
 # 3. do nothing. After default_cut_seconds:
 is_cut() == false
 allowance_remaining() == deposited      # restored with no transaction
-#    LIVE: the lift was observed twice -- live-runaway at 2026-10-20T18:34:07Z and cli-check-1
-#    at 21:54:21Z -- with no transaction in between either time. The value half of steps 1
-#    and 3 (deposited > 0) was skipped by decision and is covered by the custody tests only.
+#    LIVE: the lift was observed three times -- live-runaway at 2026-10-20T18:34:07Z,
+#    cli-check-1 at 21:54:21Z and ui-check-1 at 23:21:01Z -- with no transaction in between.
+#    ui-check-1 ran in a 180s demo window; the 900s default was restored afterwards.
+#    The value half of steps 1 and 3 (deposited > 0) was skipped by decision and is covered
+#    by the custody tests only.
 ```
 
 Step 3 is the whole product. If it needs a human to complete, the deployment is wrong.
+
+## Hosting the site
+
+`viewer/` is plain static HTML, CSS and JavaScript. There is no build step and no server: the
+GenLayer SDK is imported from `esm.sh` and every figure is a walletless read.
+
+**GitHub Pages.** `.github/workflows/pages.yml` publishes `viewer/` on every push that touches
+it. The site is live at https://vincentofweb3.github.io/furlough/.
+
+**Vercel.** Import the repository at https://vercel.com/new, set **Root Directory** to `viewer/`
+and **Framework Preset** to `Other`, then deploy. `viewer/vercel.json` adds clean URLs and
+security headers, and every push to `master` auto-deploys. With the CLI:
+
+```bash
+npx vercel --cwd viewer --prod    # the first run prompts for login
+```
+
+Neither host needs environment variables. The contract address is a constant in `viewer/app.js`
+and the landing page's status strip.
 
 ## Troubleshooting
 
 | Symptom | Cause |
 | --- | --- |
 | `cannot import name 'gl' from 'genlayer'` | a **newer, incompatible** runner was extracted into `~/.cache` by a previous `genvm-lint check`. See "the cache trap" below. `python3.12 scripts/check_env.py --fix` |
+| `HTTP Error 404` fetching `genvm-universal.tar.xz` | upstream re-cut the v0.3.0-rc7 release and removed the asset `genlayer-test` 0.29.2 requests. Seed the checksum-pinned mirror: `python3.12 scripts/check_env.py --fetch` |
 | `No py-genlayer runners found in tarball` | the SDK bundle in `~/.cache` was clobbered. `rm -rf ~/.cache/gltest-direct/extracted` and re-run |
 | `gas limit too high` on Asimov | the network caps one transaction at 2^24 gas. This source estimates 33.2M there because pubdata is priced per byte; deploy to Studionet, or keep the source under roughly 19.8 KB. |
 | Deploy FINALIZED but every read says `Contract … not found` | the contract has no runner header. GenVM rejected the code with `invalid_contract absent_runner_comment`; add the `# { "Depends": "py-genlayer:…" }` line as line 1. |
