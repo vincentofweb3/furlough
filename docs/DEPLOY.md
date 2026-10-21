@@ -44,6 +44,7 @@ Deployed and exercised on Studionet on 2026-10-20:
 | deploy tx | `0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905` - FINALIZED |
 | live cases | `live-runaway` tx `0x2e466d7a…f760014`, `cli-check-1` tx `0x7dda175b…a0887b`, `ui-check-1` tx `0x28f69b61…259379` - all FINALIZED |
 | live verdict | `CONFIRMED_MISBEHAVIOR` three times; every cut lifted by the clock with no transaction |
+| SDK write path | `genlayer-js 1.2.0` with a local testnet key re-set the window to 900s: tx `0xc34b234a323707caae9c06d2e8fbd3b2e81ba807ea7cac4f1cbe0cd1e5851f8d` - FINALIZED (not a MetaMask/browser transaction) |
 
 The contract **must** carry the runner header on line 1. Without it Studionet finalizes the
 deploy and then cannot execute the contract at all (`invalid_contract absent_runner_comment`),
@@ -62,7 +63,11 @@ That hash is the canonical one from the GenLayer docs. Do not add a second runne
    allowance is zero and there is nothing for a cut to protect.
 
    ```ts
-   await client.writeContract({ address, functionName: 'deposit', value: 5n * 10n ** 21n, fees });
+   await client.writeContract({
+     address,
+     functionName: 'deposit',
+     value: 5n * 10n ** 21n,
+   });
    ```
 
 2. **Publish a journal.** The agent writes a window of its own behaviour to a URL and passes
@@ -116,22 +121,28 @@ Step 3 is the whole product. If it needs a human to complete, the deployment is 
 
 ## Hosting the site
 
-`viewer/` is plain static HTML, CSS and JavaScript. There is no build step and no server: the
-GenLayer SDK is imported from `esm.sh` and every figure is a walletless read.
+`viewer/` is a Next.js + TypeScript app with `output: "export"`, so the build produces plain
+static files and there is no server runtime. Reads are walletless; the report and owner consoles
+use the visitor's browser wallet for signatures. `genlayer-js` is bundled, not loaded from a CDN.
 
-**GitHub Pages.** `.github/workflows/pages.yml` publishes `viewer/` on every push that touches
-it. The site is live at https://vincentofweb3.github.io/furlough/.
+**GitHub Pages.** `.github/workflows/pages.yml` runs `npm ci` and `npm run build` in `viewer/`
+with `NEXT_PUBLIC_BASE_PATH=/furlough`, then publishes `viewer/out`. The site is live at
+https://vincentofweb3.github.io/furlough/.
 
-**Vercel.** Import the repository at https://vercel.com/new, set **Root Directory** to `viewer/`
-and **Framework Preset** to `Other`, then deploy. `viewer/vercel.json` adds clean URLs and
-security headers, and every push to `master` auto-deploys. With the CLI:
+**Vercel.** Import the repository at https://vercel.com/new, set **Root Directory** to `viewer/`,
+and leave the framework preset on automatic detection (Next.js). Every push to `master`
+auto-deploys. With the CLI:
 
 ```bash
 npx vercel --cwd viewer --prod    # the first run prompts for login
 ```
 
-Neither host needs environment variables. The contract address is a constant in `viewer/app.js`
-and the landing page's status strip.
+If the existing Vercel project was created before the frontend was migrated, it may still have the
+root at the repository level and fail with `[PYTHON_ENTRYPOINT_NOT_FOUND]`: change **Settings →
+General → Root Directory** to `viewer`, clear any Python framework/build overrides, and redeploy.
+
+Neither host needs environment variables. The contract address and chain constants live in
+`viewer/lib/contract.ts`; `viewer/vercel.json` adds security headers.
 
 ## Troubleshooting
 

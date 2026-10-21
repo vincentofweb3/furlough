@@ -67,7 +67,7 @@ Line numbers refer to `contracts/agent_breaker.py` at the commit this matrix des
 | I4 | Cheap to be wrong, on purpose: capped at one hour, owner cannot extend it unbounded | `MAX_CUT_SECONDS` 69, `set_default_cut_seconds` 605 | `test_cut_outliving_a_full_hour_is_impossible`, `test_owner_cannot_set_an_out_of_range_policy` | Point at the cap |
 | I5 | Public failure argument, mapped claim-by-claim to tests | `docs/CONSENSUS.md` | - | "Section 6, the injection defences - each one names the test" |
 | I6 | Hermetic, no-network gate a reviewer can run in seconds | `tests/direct/` | 87 passing | `python3.12 -m pytest -q` |
-| I7 | Read-only multi-page site and CLI, so anyone can watch without a wallet | `viewer/`, `scripts/live_check.py` | manual: headless browser render against the live contract in both cut and lifted states, no page errors; `live_check.py status` | Open the board during an armed cut, then leave it open while the window expires |
+| I7 | Walletless live board and CLI, plus wallet-signed report/owner consoles | `viewer/`, `scripts/live_check.py` | manual: headless browser render against the live contract in both cut and lifted states, no page errors; `genlayer-js` owner write finalized (tx `0xc34b234a…5851f8d`); `live_check.py status` | Open the board during an armed cut; connect a wallet on `/report` or `/owner`; show that no method lifts a cut |
 
 ---
 

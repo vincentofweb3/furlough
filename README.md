@@ -116,6 +116,8 @@ times and every window ended by the clock, with no transaction anywhere near the
 | --- | --- |
 | Contract | `0x7Ee18844C80395E23f06Cf75D2B998723E36804f`, chain 61999 (deploy tx `0x20711178…5cb905`) |
 | Status board | https://vincentofweb3.github.io/furlough/ - every field is a free, walletless read |
+| Report console | https://vincentofweb3.github.io/furlough/report/ - file a case from a browser wallet; permissionless and zero-fee |
+| Owner console | https://vincentofweb3.github.io/furlough/owner/ - change future policy only; no method can lift an armed cut |
 | `live-runaway` | `CONFIRMED_MISBEHAVIOR`, tx `0x2e466d7a…f760014`; cut armed 18:18:59Z, lifted by the clock at 18:34:07Z |
 | `cli-check-1` | `CONFIRMED_MISBEHAVIOR`, tx `0x7dda175b…a0887b`; filed through `scripts/live_check.py`, cut armed 21:39:21Z, lifted by the clock |
 | `ui-check-1` | `CONFIRMED_MISBEHAVIOR`, tx `0x28f69b61…259379`; filed through the CLI to capture the board, 180s demo window armed 23:18:01Z, lifted by the clock at 23:21:01Z |
@@ -155,7 +157,7 @@ python3.12 scripts/live_check.py open-case \
 | `deploy/` | Deployment script |
 | `scripts/check_env.py` | Verifies the pinned GenVM bundle resolves, fetches the mirror on a fresh machine, repairs a polluted cache |
 | `scripts/live_check.py` | Live status board; files permissionless cases (zero-fee on Studionet) |
-| `viewer/` | Static multi-page site: overview, mechanism, live board, evidence. GitHub Pages workflow plus `vercel.json` |
+| `viewer/` | Next.js + TypeScript static-export site: overview, mechanism, live board, evidence, wallet-connected report console, owner console. GitHub Pages workflow plus `vercel.json` |
 | `references/traceability.md` | Criterion → feature → code → test → demo moment |
 
 ---
@@ -223,9 +225,12 @@ Three properties fall out of using consensus rather than a model call:
 - **The hermetic gate does not prove two different real models agree.** It uses a deterministic
   stand-in. Three live cases finalized under validator consensus, but three cases are not proof.
 - **Single agent per contract.** Swarms are out of scope by decision.
-- **The status board is read-only, and came after the contract.** It renders free reads and holds
-  no keys; there is no write UI by decision. The site's argument stands on the contract, the
-  tests and the live transactions, not on the pages.
+- **The consoles hold no keys and cannot lift a cut.** The status board renders free walletless
+  reads. The report console calls `open_case`; the owner console changes future policy and can
+  record an already-expired window. Signing happens in the visitor's browser wallet; there is no
+  backend and no private key on the site. The SDK write path is proven by one owner policy
+  transaction (`0xc34b234a…5851f8d`), not yet by a case filed through MetaMask. The site's
+  argument stands on the contract, the tests and the live transactions, not on the pages.
 
 Full list with reasoning: [`docs/CONSENSUS.md` §11](docs/CONSENSUS.md).
 

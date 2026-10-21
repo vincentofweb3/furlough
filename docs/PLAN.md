@@ -153,22 +153,26 @@ $ python3.12 -m pytest -q
       `seconds_remaining()` 0 at `2026-10-20T18:34:07Z`, with no transaction in between
 - [x] A second and third live case filed through `scripts/live_check.py` (`cli-check-1`,
       `ui-check-1`) - same verdict, and every window lifted by the clock
-- [x] Multi-page static site (`viewer/`) and live CLI (`scripts/live_check.py`), so a steward
-      can see the breaker without reading the contract
+- [x] Next.js + TypeScript site (`viewer/`) with a walletless live board and wallet-signed report
+      and owner consoles, plus the live CLI (`scripts/live_check.py`)
+- [x] `genlayer-js 1.2.0` write path exercised against the live contract with a local
+      testnet key: re-set the window to 900s (tx `0xc34b234a…5851f8d`, not via MetaMask)
 - [x] Screenshots of the cut and the no-transaction lift - `docs/screenshots/`, captured from
-      the current site against `ui-check-1`
+      the multi-page board against `ui-check-1`
 - [x] Make the repository public and enable GitHub Pages
 - [ ] Verify GitHub OAuth on points.genlayer.com, optionally import the site on Vercel, submit
 
+The report console has not yet filed a live case through MetaMask: the three live cases were
+filed through the CLI, and the SDK transaction above validates the same encoding and finality
+path, not the browser wallet UX. Treat the console as newly built, not as battle-tested.
+
 **Deliberately not done, and why:**
 
-- A write-enabled frontend (wallet connect, filing from the page) - out of scope by decision
-  (`SPEC.md`). Stewards judge novelty, complexity and impact; a polished dApp does not move those
-  and costs days. A read-only viewer was added after the live run so the breaker can be seen
-  working; it holds no keys.
 - Signed-digest commitment so a journal provably came from the bound agent. This is the single
   most important missing piece and it is a *new stage*, not a patch - see `CONSENSUS.md` §11.
   Attempting it now would risk the deploy that the submission depends on.
+- A funded live value loop. The allowance is zero on the deployment, so deposit/draw is covered
+  by hermetic tests and disclosed rather than faked.
 
 ---
 

@@ -4,14 +4,14 @@ Everything points.genlayer.com asks for, in the order it is asked for. Steward-r
 words - **novelty, complexity, impact** - with an 18.5% acceptance rate, so the job is to make
 the argument easy to check rather than to argue it hard.
 
-Current status is honest and marked: **deployed to Studionet and exercised live** - one real case
-reached `CONFIRMED_MISBEHAVIOR` under validator LLMs. See §3 and §6.
+Current status is honest and marked: **deployed to Studionet and exercised live** - three real
+cases reached `CONFIRMED_MISBEHAVIOR` under validator LLMs. See §3 and §6.
 
 ---
 
 ## 1. Contribution description
 
-Paste this into the contribution form. It is 145 words on purpose.
+Paste this into the contribution form. It is just under 150 words on purpose.
 
 > **Furlough** adjudicates an autonomous AI agent's own published telemetry and, on a
 > `CONFIRMED_MISBEHAVIOR` verdict, cuts the agent's custodied GEN spend allowance to zero until
@@ -27,23 +27,22 @@ Paste this into the contribution form. It is 145 words on purpose.
 > models will never write identically.
 >
 > Deployed to Studionet (`0x7Ee18844C80395E23f06Cf75D2B998723E36804f`) with 87 hermetic tests
-> and a live status viewer. Two live cases reached `CONFIRMED_MISBEHAVIOR`; both armed
-> 900-second cuts that lifted themselves.
+> and a live status board with wallet consoles. Three live cases reached
+> `CONFIRMED_MISBEHAVIOR`; every cut lifted itself.
 
 ---
 
 ## 2. Repository
 
-- [ ] Public - committed and pushed to `github.com/vincentofweb3/furlough`; the repository still
-      needs to be made public
-- [ ] `README.md` states the problem, the mechanism and the honest limits in the first screen
-- [ ] `LICENSE` present (MIT)
-- [ ] CI badge green - `.github/workflows/tests.yml`, one command, no network needed
-- [ ] `docs/CONSENSUS.md` - the safety argument, written to be disputed, every claim mapped to a test
-- [ ] `references/traceability.md` - criterion → feature → code → test → demo moment
-- [ ] `docs/PLAN.md` - what is done, what is blocked, what is deliberately not done
-- [ ] `scripts/live_check.py` and `viewer/` - read-only live status: a terminal board plus a
-      walletless page served from GitHub Pages
+- [x] Public - committed and pushed to `github.com/vincentofweb3/furlough`
+- [x] `README.md` states the problem, the mechanism and the honest limits in the first screen
+- [x] `LICENSE` present (MIT)
+- [x] CI badge green - `.github/workflows/tests.yml`, one command, no network needed
+- [x] `docs/CONSENSUS.md` - the safety argument, written to be disputed, every claim mapped to a test
+- [x] `references/traceability.md` - criterion → feature → code → test → demo moment
+- [x] `docs/PLAN.md` - what is done, what is blocked, what is deliberately not done
+- [x] `scripts/live_check.py` and `viewer/` - walletless live status plus wallet-signed report and
+      owner consoles, served from GitHub Pages
 
 **Why a reviewer can trust the test table:** during review, four claims in the safety argument
 were checked by *deleting the behaviour and confirming a test failed*. Three of the four had not
@@ -60,7 +59,7 @@ Six minutes. The last two are the product; do not rush them.
 | --- | --- | --- | --- |
 | 1 | Open the status board, then show the constructor args and `stats()` | "one agent, one custodian, one cut window" | Reusable primitive |
 | 2 | `deposit()` 5000 GEN, then `draw()` | "real GEN, allowance-gated" | Custody works |
-| 3 | Publish a runaway journal; open a case **from a non-owner address** | "anyone may report - the operator cannot suppress this" | Permissionlessness |
+| 3 | Publish a runaway journal; open a case **from the report console** | "anyone may report - the operator cannot suppress this" | Permissionlessness |
 | 4 | Show `get_case()` - verdict, rationale, digest, window | "the model wrote a rationale nobody compared; only the enum was agreed" | Consensus design |
 | 5 | `is_cut() == true`, `allowance_remaining() == 0` | "nobody did this. validators did" | N1 |
 | 6 | **Wait out the window. Read only.** No transaction. | "…and nobody undid it. the clock did" | **N3 - the whole product** |
@@ -84,7 +83,7 @@ A reviewer who finds an unclaimed hole discounts everything else. These are alre
   address and describe a retry loop. The address is public. Agent-signed digest commitment is the
   obvious fix and the first thing to build next.
 - **The hermetic gate does not prove two real models agree.** The test model is a deterministic
-  stand-in keyed on the measured bands. Two live cases have finalized, which exercises the live
+  stand-in keyed on the measured bands. Three live cases have finalized, which exercises the live
   path; that is not proof that independent models agree.
 - **Bands are hand-calibrated** against fixtures, not derived from observed agent traffic.
 - **`_settle` is a traced no-op** on SDK `v0.3.0-rc7`. Accounting is exact; GEN movement is
@@ -92,8 +91,11 @@ A reviewer who finds an unclaimed hole discounts everything else. These are alre
 - **The live run had no money in it.** The live case ran with `deposited == 0`, so the cut's
   value effect - allowance `deposited → 0 → deposited` - was not demonstrated on-chain. That
   path is covered only by the hermetic custody tests.
-- **The viewer is read-only.** It renders public reads, holds no keys, and is not part of the
-  contract's safety argument.
+- **The consoles are a convenience, not part of the safety argument.** The board renders public
+  reads. The report console calls `open_case`; the owner console changes future policy. Neither
+  holds a key, and neither can lift a cut. The write path is validated by one owner policy
+  transaction signed with a local testnet key, not yet by a case filed through MetaMask; the
+  browser console is newly built.
 - **Single agent per contract.** Multi-agent and swarms are out of scope by decision.
 
 ---
@@ -121,11 +123,11 @@ No weights are invented here; the program publishes none.
 | 2 | Live case under real validator LLMs | **done three times** - `CONFIRMED_MISBEHAVIOR`; `live-runaway` tx `0x2e466d7a…f760014` (FINALIZED in 53s), `cli-check-1` tx `0x7dda175b…a0887b`, and `ui-check-1` tx `0x28f69b61…259379`, each filed through the CLI |
 | 3 | Confirm the cut lifts by itself, no transaction | **done three times** - `2026-10-20T18:34:07Z` for `live-runaway`, `2026-10-20T21:54:21Z` for `cli-check-1`, `2026-10-20T23:21:01Z` for `ui-check-1`; `is_cut()` false, `seconds_remaining()` 0, no transaction in between any of them |
 | 4 | Deposit GEN so the allowance is visibly cut and restored | **skipped by decision** - the live case ran against a zero allowance and this is not claimed. The custody accounting is proven by the hermetic deposit/draw/refund conservation tests |
-| 5 | Screenshots of the cut and of the no-transaction lift | **done** - `docs/screenshots/viewer-cut-active.png` and `viewer-lifted.png`, captured from the current multi-page board against `ui-check-1`, embedded in the README |
+| 5 | Screenshots of the cut and of the no-transaction lift | **done** - `docs/screenshots/viewer-cut-active.png` and `viewer-lifted.png`, captured from the multi-page board against `ui-check-1`, embedded in the README |
 | 6 | Commits pushed, repo public | **done** - all commits are on `origin/master`; the repository is public |
 | 7 | GitHub OAuth verification on points.genlayer.com | human |
 | 8 | Pages for the site | **done** - Pages enabled with `build_type=workflow`; the `pages` workflow serves the site at https://vincentofweb3.github.io/furlough/ |
-| 9 | Optional Vercel deploy as the primary host | human, one import - root directory `viewer/`, framework preset "Other"; instructions in `docs/DEPLOY.md` |
+| 9 | Optional Vercel deploy as the primary host | human, one import - root directory `viewer/`, framework auto-detect (Next.js); if the old project fails with `PYTHON_ENTRYPOINT_NOT_FOUND`, change the root directory and redeploy. Instructions in `docs/DEPLOY.md` |
 
 **Before submitting:** verify OAuth, open every link in the form, and check the live board renders
 after Studionet's next reset. Item 4 stays skipped and is stated plainly rather than implied away;

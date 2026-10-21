@@ -95,6 +95,8 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 - Custodied GEN: `deposit`, `set_agent`, `draw`, `refund`, `allowance_remaining`.
 - Auto-expiry enforced in the read path, plus an explicit `reap_expired`.
 - A hermetic test suite with no network access.
+- A Next.js + TypeScript static site: walletless live board, evidence page, and wallet-signed
+  report and owner consoles. The site holds no keys; the browser wallet signs.
 
 **Explicitly out of scope** *(the main defence against scope creep under deadline pressure)*:
 
@@ -105,11 +107,8 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
   It only pauses access to it. This is a design invariant, not a missing feature.
 - Appeals or counter-cases. There is no un-freeze path, by design.
 - Cross-chain settlement, VRF, oracles, price feeds.
-- A write-enabled frontend: wallet connection, filing or drawing from a page. Judged by stewards
-  on novelty/complexity/impact, not on demo polish; one week is not enough to do both well. A
-  read-only status viewer (`viewer/`) was added after the live run as a read surface; it holds no
-  keys and adds nothing the contract does not already expose.
-- Authentication, accounts, rate limiting on public endpoints.
+- A backend, hosted keys, or server-side accounts. The frontend is static and the wallet signs.
+- Authentication or rate limiting on public endpoints.
 - Multiple agents per contract.
 
 **Deferred unless time allows**, in value-per-hour order:
@@ -123,7 +122,9 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 ## System architecture
 
 - **Runtime**: Python 3.12, `genlayer` SDK (Intelligent Contract runtime), GenVM `v0.3.0-rc7`.
-- **Frontend**: read-only status viewer (`viewer/`, static, no build step); no write UI (see out of scope).
+- **Frontend**: Next.js + TypeScript statically exported from `viewer/`; walletless reads and
+  wallet-signed report/owner writes through the browser's EIP-1193 provider. No backend and no
+  keys held by the site.
 - **Backend / services**: none. The contract is the whole system.
 - **Data layer**: GenLayer contract storage (`TreeMap`, `DynArray`).
 - **Contract layer**: `AgentBreaker`, deployed to GenLayer Studionet (chain `61999`).
