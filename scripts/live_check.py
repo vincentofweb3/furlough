@@ -9,7 +9,9 @@ the cut window and every case on record, newest first.
 
 `open-case` files an allegation. It is permissionless by design, so any testnet key works,
 and Studionet charges no gas, so the script prices the transaction at zero. It needs
-``GENLAYER_PRIVATE_KEY`` and waits for FINALIZED before printing the verdict.
+``GENLAYER_PRIVATE_KEY`` and a URL serving a ``furlough/journal@2`` envelope signed by the
+bound agent; build one with ``scripts/sign_journal.py``. It waits for FINALIZED before
+printing the verdict.
 
 The address defaults to the recorded Studionet deployment; override it with ``--address``
 or ``FURLOUGH_CONTRACT``.
@@ -26,7 +28,7 @@ from genlayer_py import create_account, create_client
 from genlayer_py.chains import studionet
 from genlayer_py.types import TransactionStatus
 
-DEFAULT_CONTRACT = "0x7Ee18844C80395E23f06Cf75D2B998723E36804f"
+DEFAULT_CONTRACT = "0x84795e25Ae0BF5337829b614493D054c1c15c907"
 EXPLORER = "https://explorer-studio.genlayer.com"
 
 STUDIONET_GAS = 20_000_000
@@ -94,7 +96,8 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"owner     {field(state, 'owner')}")
     print(
         f"custody   deposited={field(state, 'deposited')} drawn={field(state, 'drawn')} "
-        f"allowance={field(state, 'allowance_remaining')} underlying={field(state, 'underlying_allowance')}"
+        f"recovered={field(state, 'recovered')} allowance={field(state, 'allowance_remaining')} "
+        f"underlying={field(state, 'underlying_allowance')}"
     )
 
     if field(state, "cut_active", False):
@@ -189,6 +192,8 @@ def cmd_open_case(args: argparse.Namespace) -> int:
     print(f"\nverdict   {field(case, 'verdict')}")
     if field(case, "cut", False):
         print(f"cut       armed until {field(case, 'expires_at')}")
+    print(f"evidence  authenticated={field(digest, 'authenticated')} "
+          f"journal_found={field(digest, 'journal_found')}")
     print(f"digest    {field(digest, 'signature')}")
     print(f"rationale {field(case, 'rationale')}")
     return 0

@@ -95,8 +95,9 @@ export default function VerifyPage() {
         <div className="wrap">
           <h2>Finalized transactions</h2>
           <p className="section-sub">
-            Seven transactions exist for this deployment: the deploy, three case filings, three
-            owner policy changes, and one browser-SDK write validation. Everything else is a read.
+            Four transactions exist for this deployment: the deploy and three case filings. Two
+            cases carried genuine agent signatures; the third deliberately did not. Everything else
+            is a read.
           </p>
           <div className="table-wrap">
             <table className="table">
@@ -142,10 +143,11 @@ export default function VerifyPage() {
 
       <section>
         <div className="wrap">
-          <h2>Three cuts, no unlock transactions</h2>
+          <h2>One signed cut, no unlock transaction</h2>
           <p className="section-sub">
             The product claim, as recorded on chain. &quot;Lifted&quot; means the deadline passed and
-            the allowance returned by itself.
+            the allowance returned by itself. The unsigned case filed alongside it was rejected
+            before any model was consulted.
           </p>
           <div className="table-wrap">
             <table className="table">
@@ -172,11 +174,11 @@ export default function VerifyPage() {
             </table>
           </div>
           <p className="small mt-14">
-            <code>ui-check-1</code> ran in a deliberately short 180s window so the board could be
-            captured in both states; the 900s default was restored in a separate policy transaction.
-            No method exists that lifts a cut early. The only write after a cut is{" "}
-            <code>reap_expired</code>, which records <code>lifted_at</code> for the public log and
-            changes no allowance.
+            <code>live-v2-auth-1</code> was filed with a signed envelope;{" "}
+            <code>live-v2-unsigned-1</code> served the same journal bytes without a signature and
+            finalized as <code>INSUFFICIENT_EVIDENCE</code>. No method exists that lifts a cut
+            early. The only write after a cut is <code>reap_expired</code>, which records{" "}
+            <code>lifted_at</code> for the public log and changes no allowance.
           </p>
         </div>
       </section>
@@ -196,15 +198,11 @@ export default function VerifyPage() {
             </div>
             <div className="card">
               <div className="label">Write validation</div>
-              <h3>One transaction proves the path</h3>
+              <h3>SDK path exercised, browser path unchanged</h3>
               <p className="small">
-                <code>genlayer-js 1.2.0</code> executed <code>set_default_cut_seconds(900)</code>{" "}
-                against the live contract:{" "}
-                <a href={txUrl(TRANSACTIONS[6].hash)} target="_blank" rel="noopener noreferrer">
-                  <code>{shortHash(TRANSACTIONS[6].hash)}</code>
-                </a>
-                . The browser wallet supplies the signature; the encoding and finality wait are the
-                paths exercised here.
+                <code>genlayer-js 1.2.0</code> finalized an owner policy write on the previous
+                deployment. The v2 transactions were filed through the CLI; the browser console
+                uses the same contract ABI and has not yet filed a v2 case through MetaMask.
               </p>
             </div>
           </div>
@@ -224,8 +222,10 @@ cd furlough
 python3.12 scripts/live_check.py status`}</code>
           </pre>
           <p className="section-sub mb-0">
-            Filing a case is permissionless; any testnet key works and Studionet charges no gas. The{" "}
-            <Link href="/report">browser console</Link> does the same through a wallet. See{" "}
+            Filing a case is permissionless; any testnet key works and Studionet charges no gas,
+            but the URL must serve a <code>furlough/journal@2</code> envelope signed by the bound
+            agent. The <Link href="/report">browser console</Link> does the same through a wallet.
+            See{" "}
             <a
               href="https://github.com/vincentofweb3/furlough/blob/master/docs/DEPLOY.md"
               target="_blank"
@@ -293,8 +293,8 @@ ${TEST_COUNT} passed`}</code>
             <div className="card">
               <h3>No live value loop</h3>
               <p className="small">
-                The deployed contract has <code>deposited = 0</code>. Custody and draw semantics are
-                covered by hermetic tests, not by a live funded agent. A live demo needs a funded key
+                The deployed contract has <code>deposited = 0</code>. Custody, draw, atomic settlement and
+                recovery semantics are covered by hermetic tests, not by a live funded agent. A live demo needs a funded key
                 and a real agent journal.
               </p>
             </div>
@@ -311,10 +311,11 @@ ${TEST_COUNT} passed`}</code>
               <p className="small">This is a testnet contribution. Do not use it with real value.</p>
             </div>
             <div className="card">
-              <h3>Journal trust</h3>
+              <h3>Authenticated, not truthful</h3>
               <p className="small">
-                Validators fetch the journal independently, but nothing proves the agent authored it.
-                Signed digests are the documented next step.
+                The bound agent must sign the exact case, claim, URL and journal bytes; an unsigned
+                or replayed document cannot cut. A compromised agent key can still sign false
+                telemetry - authentication is not an oracle.
               </p>
             </div>
           </div>

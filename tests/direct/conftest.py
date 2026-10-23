@@ -13,7 +13,7 @@ import pytest
 from gltest.direct import pytest_plugin  # noqa: F401  (registers direct_* fixtures)
 
 sys.path.insert(0, str(Path(__file__).parent))
-from fixtures import FIXTURES, case_payload  # noqa: E402
+from fixtures import AGENT, FIXTURES, case_payload, signed_envelope  # noqa: E402
 
 CONTRACT = "contracts/agent_breaker.py"
 
@@ -26,23 +26,10 @@ CONTRACT = "contracts/agent_breaker.py"
 SDK_VERSION = "v0.3.0-rc7"
 
 OWNER = "0x" + "aa" * 20
-AGENT = "0x" + "cc" * 20
 REPORTER = "0x" + "bb" * 20
 DEPOSIT = 5 * 10**21  # 5000 GEN
 
 T0 = "2026-06-15T12:00:00Z"
-
-
-def _web_mocks():
-    """Serve the recorded journals. `unreachable` is a real HTTP 404."""
-    mocks = []
-    for name, fixture in FIXTURES.items():
-        payload = fixture["payload"]
-        if payload is None:
-            mocks.append((fixture["journal"], 404, "not found"))
-        else:
-            mocks.append((fixture["journal"], 200, json.dumps(payload)))
-    return mocks
 
 
 def _llm_mocks():
@@ -104,9 +91,7 @@ def _llm_mocks():
 
 @pytest.fixture
 def breaker(direct_vm, direct_deploy):
-    """Deployed contract with journal + model mocks registered and the custodian funded."""
-    for url, status, body in _web_mocks():
-        direct_vm.mock_web(url, {"method": "GET", "status": status, "body": body})
+    """Deployed contract with deterministic model mocks registered."""
     for pattern, response in _llm_mocks():
         direct_vm.mock_llm(pattern, response)
 
@@ -149,11 +134,43 @@ def advance_time(vm, iso: str) -> None:
     _gl.message_raw["datetime"] = iso
 
 
-def open_case(contract, vm, case_name: str, case_id: str | None = None):
-    """Open one fixture as an arbitrary (non-owner, non-agent) sender."""
+def open_case(
+    contract,
+    vm,
+    case_name: str,
+    case_id: str | None = None,
+    *,
+    sender: str = REPORTER,
+    claim: str | None = None,
+    body: str | None = None,
+):
+    """Register a signed, case-bound journal and file the allegation.
+
+    The URL includes the case id, so two cases using the same fixture do not reuse each
+    other's signature. ``body`` lets a test serve a deliberately broken envelope.
+    """
     fixture = FIXTURES[case_name]
-    vm.sender = REPORTER
-    return contract.open_case(case_payload(case_id or case_name, fixture))
+    case_id = case_id or case_name
+    claim = claim if claim is not None else fixture["claim"]
+    url = f"https://journal.test/case/{case_id}/{case_name}"
+
+    payload = fixture["payload"]
+    if payload is None and body is None:
+        vm.mock_web(url, {"method": "GET", "status": 404, "body": "not found"})
+    else:
+        if body is None:
+            body = signed_envelope(
+                vm._contract_address,
+                vm._chain_id,
+                case_id,
+                claim,
+                url,
+                payload,
+            )
+        vm.mock_web(url, {"method": "GET", "status": 200, "body": body})
+
+    vm.sender = sender
+    return contract.open_case(case_payload(case_id, fixture, url))
 
 
 def draw(contract, vm, amount: int):

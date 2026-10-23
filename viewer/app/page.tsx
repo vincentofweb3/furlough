@@ -84,35 +84,46 @@ export default function HomePage() {
         <div className="wrap">
           <h2>How the judgement is made</h2>
           <p className="section-sub">
-            Three stages, following the GenLayer idiom. Only one of them involves a model, and the
+            Four stages, following the GenLayer idiom. Only one of them involves a model, and the
             model&apos;s words never cross the consensus boundary.
           </p>
           <div className="steps">
             <div className="step">
               <div className="no">1</div>
               <div>
-                <h3>Reduce before consensus</h3>
+                <h3>Authenticate the evidence</h3>
                 <p>
-                  The leader fetches the agent&apos;s journal and collapses it to a banded,
-                  identifier-free digest. Timestamps, exact counts and raw IDs are dropped;
-                  concentration ratios survive. A journal that merely grew reduces byte-identically.
+                  The journal must carry a <code>furlough/journal@2</code> envelope signed by the
+                  bound agent over this contract, chain, case, claim, URL and journal bytes.
+                  Unsigned, tampered or replayed documents stop here, before any model call.
                 </p>
               </div>
             </div>
             <div className="step">
               <div className="no">2</div>
               <div>
+                <h3>Reduce before consensus</h3>
+                <p>
+                  The leader fetches the signed journal and collapses it to a banded,
+                  identifier-free digest. Timestamps, exact counts and raw IDs are dropped;
+                  concentration ratios survive. A journal that merely grew reduces byte-identically.
+                </p>
+              </div>
+            </div>
+            <div className="step">
+              <div className="no">3</div>
+              <div>
                 <h3>Ask for one enum</h3>
                 <p>
-                  Validators independently re-fetch, re-reduce and re-derive, then compare{" "}
-                  <code>CONFIRMED_MISBEHAVIOR</code>, <code>FALSE_REPORT</code> or{" "}
+                  Validators independently re-fetch, re-authenticate, re-reduce and re-derive, then
+                  compare <code>CONFIRMED_MISBEHAVIOR</code>, <code>FALSE_REPORT</code> or{" "}
                   <code>INSUFFICIENT_EVIDENCE</code>. Rationale is free text two models will never
                   write identically, so it is recorded and never compared.
                 </p>
               </div>
             </div>
             <div className="step">
-              <div className="no">3</div>
+              <div className="no">4</div>
               <div>
                 <h3>Enforce with a clock</h3>
                 <p>
@@ -154,8 +165,8 @@ export default function HomePage() {
               <span className="badge insufficient">INSUFFICIENT_EVIDENCE</span>
               <h3 className="mt-14">Nothing happens</h3>
               <p className="small">
-                The journal is missing, unreadable or inconclusive. The contract never treats
-                &quot;could not tell&quot; as &quot;guilty&quot;.
+                The journal is missing, unreadable, unsigned, replayed or inconclusive. The contract
+                never treats &quot;could not tell&quot; as &quot;guilty&quot;.
               </p>
             </div>
           </div>
@@ -170,7 +181,8 @@ export default function HomePage() {
               <div className="label">Permissionless</div>
               <h3>The operator cannot suppress a case</h3>
               <p className="small">
-                Anyone may file one. A breaker only the trusting owner can trigger is not a breaker.
+                Anyone may file one, but only a journal signed by the bound agent can cut. The
+                operator cannot suppress a case, and an anonymous document cannot open one.
               </p>
             </div>
             <div className="card">
@@ -203,14 +215,14 @@ export default function HomePage() {
           <div className="grid four">
             <div className="card">
               <span className="num">3</span>
-              <div className="num-note">live cases finalized with CONFIRMED_MISBEHAVIOR</div>
+              <div className="num-note">live cases: confirmed, false report, insufficient evidence</div>
             </div>
             <div className="card">
-              <span className="num">3</span>
-              <div className="num-note">cuts lifted by the clock, zero transactions</div>
+              <span className="num">1</span>
+              <div className="num-note">signed cut lifted by the clock, zero transactions</div>
             </div>
             <div className="card">
-              <span className="num">87</span>
+              <span className="num">106</span>
               <div className="num-note">hermetic tests, no network, no API key</div>
             </div>
             <div className="card">

@@ -11,8 +11,9 @@ and no human lifts it.
 
 Three stages:
 
-  Stage 1  deterministic evidence -- the leader fetches the agent's journal and reduces it
-           to a stable-field digest inside the nondet block, with no model involved
+  Stage 1  deterministic evidence -- the leader fetches the agent's signed journal envelope,
+           verifies the signature against the bound agent, and reduces the journal to a
+           stable-field digest inside the nondet block, with no model involved
   Stage 2  GenLayer consensus on ONE discrete enum (the verdict)
   Stage 3  retention -- verdict, rationale, digest and window are all publicly readable
 
@@ -50,7 +51,15 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from genlayer import gl, allow_storage, TreeMap, DynArray, Address, u256
+from genlayer import (
+    gl,
+    allow_storage,
+    TreeMap,
+    DynArray,
+    Address,
+    Keccak256,
+    u256,
+)
 
 # --------------------------------------------------------------------------------------
 # Verdict enum. Constraining the output space is the main defence against prompt injection:
@@ -64,10 +73,20 @@ INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 VALID_VERDICTS = (CONFIRMED_MISBEHAVIOR, FALSE_REPORT, INSUFFICIENT_EVIDENCE)
 
 # Evidence schema version. Bump when the digest shape changes so old cases stay readable.
-EVIDENCE_SCHEMA = "furlough/journal@1"
+EVIDENCE_SCHEMA = "furlough/journal@2"
 
 # A cut is time-boxed and never longer than this. A wrong verdict must be cheap.
 MAX_CUT_SECONDS = 3600
+
+# secp256k1 domain parameters. The contract verifies an agent signature itself because the
+# SDK exposes Keccak256 but no ecrecover primitive, and the whole point of the signature is
+# that it must be checked deterministically inside consensus.
+_SECP_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+_SECP_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+_SECP_G = (
+    0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
+    0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8,
+)
 
 # `open_case` is permissionless, so every attacker-controlled string it accepts is bounded.
 # claim and journal_url are truncated to 2000; case_id is a storage key and is rejected above
@@ -93,6 +112,7 @@ class Digest:
     """
 
     journal_found: bool
+    authenticated: bool
     agent_matches: bool
     step_count_band: str
     distinct_tool_band: str
@@ -108,6 +128,7 @@ class Digest:
     def from_digest(digest: dict) -> "Digest":
         return Digest(
             journal_found=bool(digest.get("journal_found", False)),
+            authenticated=bool(digest.get("authenticated", False)),
             agent_matches=bool(digest.get("agent_matches", False)),
             step_count_band=str(digest.get("step_count_band", "UNKNOWN")),
             distinct_tool_band=str(digest.get("distinct_tool_band", "UNKNOWN")),
@@ -167,12 +188,222 @@ def _as_hex(value: object) -> str:
     """Address -> hex string, or pass a plain string through.
 
     ``gl.message.sender_address`` is an ``Address`` on a real GenVM node but decodes as a
-    plain string under the direct test harness, so both shapes must be accepted.
+    plain string or raw bytes under the direct test harness, so all three shapes must be
+    accepted.
     """
     if isinstance(value, str):
         return value
+    if isinstance(value, (bytes, bytearray)):
+        return "0x" + bytes(value).hex()
     as_hex = getattr(value, "as_hex", None)
     return as_hex if isinstance(as_hex, str) else str(value)
+
+
+def _norm_address(value: object) -> str:
+    """Lowercase hex body, so Address, bytes and checksummed strings compare equally."""
+    text = _as_hex(value).strip().lower()
+    return text[2:] if text.startswith("0x") else text
+
+
+def _hex_bytes(value: object) -> bytes:
+    """Decode a 0x-prefixed hex string, returning b'' for anything malformed."""
+    if not isinstance(value, str):
+        return b""
+    text = value.strip()
+    if text[:2].lower() == "0x":
+        text = text[2:]
+    if not text or len(text) % 2:
+        return b""
+    try:
+        return bytes.fromhex(text)
+    except ValueError:
+        return b""
+
+
+def _keccak_hex(value: object) -> str:
+    """Keccak-256 of a string/bytes value as lowercase hex, without the 0x prefix."""
+    if isinstance(value, bytes):
+        data = value
+    elif isinstance(value, bytearray):
+        data = bytes(value)
+    else:
+        data = str(value).encode("utf-8")
+    return Keccak256(data).digest().hex()
+
+
+def _point_add(left: object, right: object) -> object:
+    """Add two secp256k1 points, with None as the point at infinity."""
+    if left is None:
+        return right
+    if right is None:
+        return left
+    x1, y1 = left
+    x2, y2 = right
+    if x1 == x2:
+        if (y1 + y2) % _SECP_P == 0:
+            return None
+        slope = (3 * x1 * x1) * pow(2 * y1, -1, _SECP_P) % _SECP_P
+    else:
+        slope = (y2 - y1) * pow(x2 - x1, -1, _SECP_P) % _SECP_P
+    x3 = (slope * slope - x1 - x2) % _SECP_P
+    return (x3, (slope * (x1 - x3) - y1) % _SECP_P)
+
+
+def _point_mul(scalar: int, point: object) -> object:
+    """Scalar multiplication by double-and-add. Constant shape, no external libraries."""
+    result = None
+    addend = point
+    k = scalar % _SECP_N
+    while k:
+        if k & 1:
+            result = _point_add(result, addend)
+        addend = _point_add(addend, addend)
+        k >>= 1
+    return result
+
+
+def _ecdsa_verify(pubkey: bytes, digest: bytes, signature: bytes) -> bool:
+    """Verify a raw secp256k1 signature against a 64-byte uncompressed public key.
+
+    Ethereum's usual ecrecover is unavailable in this SDK, so the contract checks the
+    equation directly. Only low-s signatures are accepted, which removes the malleable
+    twin of every valid signature and makes replay of a rewritten signature impossible.
+    """
+    if len(pubkey) == 65 and pubkey[0] == 4:
+        pubkey = pubkey[1:]
+    if len(pubkey) != 64 or len(digest) != 32 or len(signature) != 65:
+        return False
+
+    x = int.from_bytes(pubkey[:32], "big")
+    y = int.from_bytes(pubkey[32:], "big")
+    r = int.from_bytes(signature[:32], "big")
+    s = int.from_bytes(signature[32:64], "big")
+    v = signature[64]
+
+    if v not in (0, 1, 27, 28):
+        return False
+    if not (0 < r < _SECP_N and 0 < s <= _SECP_N // 2):
+        return False
+    if x >= _SECP_P or y >= _SECP_P:
+        return False
+    if (y * y - (x * x * x + 7)) % _SECP_P != 0:
+        return False
+
+    z = int.from_bytes(digest, "big")
+    inverse = pow(s, -1, _SECP_N)
+    point = _point_add(
+        _point_mul((z * inverse) % _SECP_N, _SECP_G),
+        _point_mul((r * inverse) % _SECP_N, (x, y)),
+    )
+    return point is not None and point[0] % _SECP_N == r
+
+
+def _pubkey_address(pubkey: bytes) -> str:
+    """Ethereum address for an uncompressed secp256k1 public key, lowercase with 0x."""
+    if len(pubkey) == 65 and pubkey[0] == 4:
+        pubkey = pubkey[1:]
+    if len(pubkey) != 64:
+        return ""
+    return "0x" + Keccak256(pubkey).digest()[-20:].hex()
+
+
+def evidence_message(
+    contract: object,
+    chain_id: object,
+    case_id: str,
+    claim: str,
+    agent: object,
+    journal_url: str,
+    journal_text: str,
+) -> str:
+    """Canonical bytes-to-be-hashed for a journal envelope.
+
+    Every variable-length string is hashed, so a newline inside a case id or a claim cannot
+    move the field boundary and make two different filings share one signature.
+    """
+    return "\n".join(
+        [
+            EVIDENCE_SCHEMA,
+            f"contract=0x{_norm_address(contract)}",
+            f"chain_id={int(chain_id)}",
+            f"case_id_keccak=0x{_keccak_hex(case_id)}",
+            f"claim_keccak=0x{_keccak_hex(claim)}",
+            f"agent=0x{_norm_address(agent)}",
+            f"journal_url_keccak=0x{_keccak_hex(journal_url)}",
+            f"journal_keccak=0x{_keccak_hex(journal_text)}",
+        ]
+    )
+
+
+def _verify_journal_envelope(
+    body: Optional[bytes],
+    contract: object,
+    chain_id: object,
+    case_id: str,
+    claim: str,
+    agent: str,
+    journal_url: str,
+) -> dict:
+    """Parse and authenticate a journal envelope. Never raises.
+
+    Authenticated means all of: the envelope names the case and the bound agent, the
+    embedded public key derives to that agent, the signature is valid over the canonical
+    message (which binds this contract, chain, case, claim and URL), and the signed journal
+    text is a JSON object.
+    """
+    result = {"authenticated": False, "payload": None, "note": "UNAUTHENTICATED"}
+    if not body:
+        result["note"] = "EMPTY_BODY"
+        return result
+    try:
+        envelope = json.loads(body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        result["note"] = "ENVELOPE_NOT_JSON"
+        return result
+    if not isinstance(envelope, dict):
+        result["note"] = "ENVELOPE_NOT_OBJECT"
+        return result
+    if str(envelope.get("schema", "")) != EVIDENCE_SCHEMA:
+        result["note"] = "SCHEMA_MISMATCH"
+        return result
+    if str(envelope.get("case_id", "")) != case_id:
+        result["note"] = "CASE_MISMATCH"
+        return result
+    if _norm_address(envelope.get("agent", "")) != _norm_address(agent):
+        result["note"] = "AGENT_MISMATCH"
+        return result
+
+    journal_text = envelope.get("journal")
+    if not isinstance(journal_text, str):
+        result["note"] = "JOURNAL_NOT_STRING"
+        return result
+
+    pubkey = _hex_bytes(envelope.get("pubkey"))
+    signature = _hex_bytes(envelope.get("signature"))
+    if _pubkey_address(pubkey) != "0x" + _norm_address(agent):
+        result["note"] = "PUBKEY_NOT_AGENT"
+        return result
+
+    message = evidence_message(
+        contract, chain_id, case_id, claim, agent, journal_url, journal_text
+    )
+    if not _ecdsa_verify(pubkey, Keccak256(message.encode("utf-8")).digest(), signature):
+        result["note"] = "BAD_SIGNATURE"
+        return result
+
+    try:
+        payload = json.loads(journal_text)
+    except (ValueError, TypeError):
+        result["note"] = "JOURNAL_NOT_JSON"
+        return result
+    if not isinstance(payload, dict):
+        result["note"] = "JOURNAL_NOT_OBJECT"
+        return result
+
+    result["authenticated"] = True
+    result["payload"] = payload
+    result["note"] = "AUTHENTICATED"
+    return result
 
 
 def _strip_us(iso: str) -> str:
@@ -322,7 +553,9 @@ def _max_count(values: list) -> int:
     return best
 
 
-def reduce_journal(payload: dict, agent: str, deposited: int) -> dict:
+def reduce_journal(
+    payload: dict, agent: str, deposited: int, authenticated: bool = False
+) -> dict:
     """Stage 1: reduce a raw agent journal to stable fields only.
 
     Dropped on purpose, because they can change between two fetches seconds apart or are
@@ -359,6 +592,7 @@ def reduce_journal(payload: dict, agent: str, deposited: int) -> dict:
     return {
         "schema": EVIDENCE_SCHEMA,
         "journal_found": True,
+        "authenticated": bool(authenticated),
         "agent_matches": bool(reported_agent) and reported_agent == str(agent).lower(),
         "step_count_band": _band_int(step_count, _STEP_BANDS),
         "distinct_tool_band": _band_int(len(set(tools)), _TOOL_BANDS),
@@ -390,6 +624,7 @@ def missing_digest(status: int) -> dict:
     return {
         "schema": EVIDENCE_SCHEMA,
         "journal_found": False,
+        "authenticated": False,
         "agent_matches": False,
         "step_count_band": "UNKNOWN",
         "distinct_tool_band": "UNKNOWN",
@@ -403,21 +638,50 @@ def missing_digest(status: int) -> dict:
     }
 
 
-def digest_from_response(status: int, body: Optional[bytes], agent: str, deposited: int) -> dict:
-    """Decode a journal response and reduce it. Never raises."""
+def digest_from_response(
+    status: int,
+    body: Optional[bytes],
+    agent: str,
+    deposited: int,
+    auth_context: Optional[dict] = None,
+) -> dict:
+    """Authenticate and reduce a journal response. Never raises.
+
+    ``auth_context`` carries the contract, chain, case, claim and URL that the envelope
+    must be bound to. Without it the evidence is unauthenticated by definition and is
+    reduced to the same shape as a missing journal, so no caller can accidentally treat a
+    reporter-chosen file as agent evidence.
+    """
     if status != 200 or not body:
         return missing_digest(status)
     try:
-        payload = json.loads(body.decode("utf-8"))
+        envelope = json.loads(body.decode("utf-8"))
     except (ValueError, UnicodeDecodeError):
         missing = missing_digest(status)
         missing["note"] = "UNPARSEABLE"
         return missing
-    if not isinstance(payload, dict):
+    if not isinstance(envelope, dict):
         missing = missing_digest(status)
         missing["note"] = "NOT_AN_OBJECT"
         return missing
-    return reduce_journal(payload, agent, deposited)
+    if not isinstance(auth_context, dict):
+        missing = missing_digest(status)
+        missing["note"] = "UNAUTHENTICATED"
+        return missing
+    auth = _verify_journal_envelope(
+        body,
+        auth_context.get("contract", ""),
+        auth_context.get("chain_id", 0),
+        str(auth_context.get("case_id", "")),
+        str(auth_context.get("claim", "")),
+        str(auth_context.get("agent", "")),
+        str(auth_context.get("journal_url", "")),
+    )
+    if not auth["authenticated"]:
+        missing = missing_digest(status)
+        missing["note"] = str(auth["note"])
+        return missing
+    return reduce_journal(auth["payload"], agent, deposited, authenticated=True)
 
 
 def digest_signature(digest: dict) -> str:
@@ -430,6 +694,7 @@ def digest_signature(digest: dict) -> str:
     parts = [
         str(digest.get("schema", "")),
         "found=1" if digest.get("journal_found") else "found=0",
+        "auth=1" if digest.get("authenticated") else "auth=0",
         "match=1" if digest.get("agent_matches") else "match=0",
         f"steps={digest.get('step_count_band')}",
         f"tools={digest.get('distinct_tool_band')}",
@@ -471,6 +736,7 @@ def build_prompt(claim: str, digest: dict) -> str:
     observed = "\n".join(
         [
             f"- journal_retrieved: {digest.get('journal_found')}",
+            f"- journal_authenticated_by_the_bound_agent: {digest.get('authenticated')}",
             f"- journal_belongs_to_the_bound_agent: {digest.get('agent_matches')}",
             f"- step_count_band: {digest.get('step_count_band')}",
             f"- distinct_tools_used_band: {digest.get('distinct_tool_band')}",
@@ -497,6 +763,8 @@ def build_prompt(claim: str, digest: dict) -> str:
         "distinguish misbehavior from ordinary work.\n"
         "\n"
         "If `journal_retrieved` is False you MUST choose INSUFFICIENT_EVIDENCE.\n"
+        "If `journal_authenticated_by_the_bound_agent` is False you MUST choose "
+        "INSUFFICIENT_EVIDENCE.\n"
         "If `journal_belongs_to_the_bound_agent` is False you MUST choose INSUFFICIENT_EVIDENCE.\n"
         "Be conservative: an unjustified suspension harms a working agent, so when the "
         "measurements are ambiguous choose INSUFFICIENT_EVIDENCE rather than either extreme.\n"
@@ -539,6 +807,17 @@ def _extract_rationale(result: object) -> str:
 # --------------------------------------------------------------------------------------
 
 
+@gl.evm.contract_interface
+class _ExternalAccount:
+    """Value-only EVM interface: ``emit_transfer`` sends GEN to an EOA."""
+
+    class View:
+        pass
+
+    class Write:
+        pass
+
+
 class AgentBreaker(gl.Contract):
     owner: str
     agent: str
@@ -546,9 +825,11 @@ class AgentBreaker(gl.Contract):
 
     # Custodied GEN. ``deposited`` only ever rises, ``drawn`` only ever rises, and the gap
     # between them is the allowance. A cut suspends access to the gap; it never touches
-    # either counter.
+    # either counter. ``recovered`` tracks value from a failed transfer that has returned to
+    # the contract, so a failed draw or refund restores the allowance without inventing GEN.
     deposited: u256
     drawn: u256
+    recovered: u256
 
     # The active cut. ``cut_until`` is set when a case confirms and is never rewritten to an
     # earlier time. When its window closes the allowance returns by itself, because
@@ -568,6 +849,8 @@ class AgentBreaker(gl.Contract):
         default_cut_seconds: int = 900,
     ) -> None:
         self.owner = owner
+        if len(_hex_bytes(agent)) != 20:
+            raise gl.vm.UserError("agent must be a 20-byte address")
         self.agent = agent
         cut_seconds = int(default_cut_seconds)
         # Fail loudly rather than silently substituting a default. A deploy that asked for a
@@ -577,6 +860,7 @@ class AgentBreaker(gl.Contract):
         self.default_cut_seconds = u256(cut_seconds)
         self.deposited = u256(0)
         self.drawn = u256(0)
+        self.recovered = u256(0)
         self.cut_until = ""
         self.cut_case_id = ""
         self.case_ids = []
@@ -598,9 +882,10 @@ class AgentBreaker(gl.Contract):
         change and keeps applying to whoever the agent becomes.
         """
         self._only_owner()
-        if not str(agent).strip():
-            raise gl.vm.UserError("agent must not be empty")
-        self.agent = str(agent).strip()
+        candidate = str(agent).strip()
+        if len(_hex_bytes(candidate)) != 20:
+            raise gl.vm.UserError("agent must be a 20-byte address")
+        self.agent = candidate
 
     @gl.public.write
     def set_default_cut_seconds(self, seconds: int) -> None:
@@ -629,6 +914,7 @@ class AgentBreaker(gl.Contract):
         if value <= 0:
             raise gl.vm.UserError("deposit must send some GEN")
         self.deposited = u256(int(self.deposited) + value)
+        self._reconcile_recovery()
         return self.deposited
 
     @gl.public.write
@@ -637,8 +923,9 @@ class AgentBreaker(gl.Contract):
 
         This is where the cut bites. While a cut is active the call is refused before any
         state changes and before any value moves, so a cut agent cannot spend its way out of
-        one. The refusal IS the breaker; the transfer afterwards is a best-effort
-        settlement detail and never the thing standing between the agent and the money.
+        one. The refusal IS the breaker. The transfer is emitted inside this transaction, so
+        a synchronous failure reverts the accounting with it; a child that fails after this
+        transaction finalises is repaired by the refund callback or ``reconcile``.
         """
         sender = _as_hex(gl.message.sender_address)
         if sender.lower() != self.agent.lower():
@@ -648,11 +935,15 @@ class AgentBreaker(gl.Contract):
             raise gl.vm.UserError("draw must be positive")
         if self.cut_active():
             raise gl.vm.UserError("agent allowance is cut until the window expires")
+        self._reconcile_recovery()
         if value > self._raw_allowance():
             raise gl.vm.UserError("draw exceeds remaining allowance")
 
-        self.drawn = u256(int(self.drawn) + value)
+        # Emit before committing the counter. A synchronous failure then leaves the
+        # accounting untouched even on a harness that does not emulate transaction rollback;
+        # on GenVM the emit and the write are one atomic turn either way.
         self._settle(self.agent, value, f"draw:{value}")
+        self.drawn = u256(int(self.drawn) + value)
         return u256(value)
 
     @gl.public.write
@@ -669,15 +960,49 @@ class AgentBreaker(gl.Contract):
             raise gl.vm.UserError("refund must be positive")
         if self.cut_active():
             raise gl.vm.UserError("cannot refund while a cut is active")
+        self._reconcile_recovery()
         if value > self._raw_allowance():
             raise gl.vm.UserError("refund exceeds remaining allowance")
-        self.deposited = u256(int(self.deposited) - value)
         self._settle(self.owner, value, f"refund:{value}")
+        self.deposited = u256(int(self.deposited) - value)
         return self.deposited
 
+    @gl.public.write
+    def reconcile(self) -> u256:
+        """Credit returned failed transfers that never invoked the refund callback.
+
+        Permissionless and idempotent. The contract has no ``__receive__``, so a balance
+        above ``deposited - drawn + recovered`` can only be GEN that left on a failed child
+        transaction and came back. This is the fallback for a node that does not run
+        ``__on_errored_message__``.
+        """
+        self._reconcile_recovery()
+        return self.recovered
+
+    def _reconcile_recovery(self) -> None:
+        expected = int(self.deposited) - int(self.drawn) + int(self.recovered)
+        actual = int(self.balance)
+        if actual > expected:
+            self.recovered = u256(int(self.recovered) + actual - expected)
+            gl.trace("RECOVERED", f"{actual - expected}")
+
     def _raw_allowance(self) -> int:
-        """deposited - drawn, with no cut applied. The underlying balance."""
-        return int(self.deposited) - int(self.drawn)
+        """deposited - drawn + recovered, with no cut applied. The underlying balance."""
+        return int(self.deposited) - int(self.drawn) + int(self.recovered)
+
+    @gl.public.write.payable
+    def __on_errored_message__(self) -> None:
+        """Accept the refund of a child transfer that failed after this contract's turn.
+
+        GenVM returns the held value with this callback when it invokes it. Crediting
+        ``recovered`` restores the allowance whether the failed message was a draw or a
+        refund. If the callback is not invoked on a given network, ``reconcile`` observes
+        the same surplus from the real balance instead.
+        """
+        value = int(gl.message.value)
+        if value > 0:
+            self.recovered = u256(int(self.recovered) + value)
+            gl.trace("RECOVERED", f"callback:{value}")
 
     @gl.public.view
     def allowance_remaining(self) -> u256:
@@ -789,22 +1114,34 @@ class AgentBreaker(gl.Contract):
         journal_url_local = journal_url
         agent_local = agent
         deposited_local = self._raw_allowance()
+        contract_local = _as_hex(gl.message.contract_address)
+        chain_id_local = int(gl.message.chain_id)
+        auth_local = {
+            "contract": contract_local,
+            "chain_id": chain_id_local,
+            "case_id": case_id,
+            "claim": claim_local,
+            "agent": agent_local,
+            "journal_url": journal_url_local,
+        }
 
         def leader_fn() -> dict:
             # The web call is inline rather than delegated: it must sit lexically inside the
             # function handed to run_nondet_unsafe, which is both clearer to a reader and
             # what genvm-lint requires to see. The reduction below it is pure.
             res = gl.nondet.web.get(journal_url_local)
-            digest = digest_from_response(res.status, res.body, agent_local, deposited_local)
+            digest = digest_from_response(
+                res.status, res.body, agent_local, deposited_local, auth_local
+            )
 
-            # Deterministic short-circuit. If the journal could not be read at all there is
-            # nothing for a model to weigh, so the model is never consulted: no inference is
-            # spent, and there is no surface for an attacker to inject into.
-            if not digest.get("journal_found"):
+            # Deterministic short-circuit. If the journal is missing, unreadable, or not
+            # signed by the bound agent, there is nothing for a model to weigh: no inference
+            # is spent, and a reporter cannot turn their own file into a custody cut.
+            if not digest.get("journal_found") or not digest.get("authenticated"):
                 return {
                     "verdict": INSUFFICIENT_EVIDENCE,
-                    "rationale": "The agent's journal could not be retrieved, so there is "
-                    "nothing to adjudicate.",
+                    "rationale": "The journal is missing or not signed by the bound agent, "
+                    "so there is nothing to adjudicate.",
                     "digest": digest,
                 }
 
@@ -907,20 +1244,17 @@ class AgentBreaker(gl.Contract):
                 self.cut_case_id = case_id
 
     def _settle(self, to: str, amount: int, memo: str) -> None:
-        """Best-effort value settlement to an address.
+        """Move GEN to an EOA. Deliberately not wrapped.
 
-        Accounting is already committed by the caller; this only moves the GEN. It is
-        wrapped because SDK v0.3.0-rc7 does not expose a chain-layer EOA transfer helper and
-        the test harness does not implement EthSend, so on localnet this is a traced no-op.
-        A failure here can never enrich the agent -- the allowance was already debited.
+        A synchronous failure must leave the caller's accounting untouched, so this raises
+        instead of swallowing and the caller commits its counter only after this returns.
+        The transaction is the atomic boundary; only failures that happen after
+        finalisation need the recovery path.
         """
         if amount <= 0:
             return
-        try:
-            gl.get_contract_at(Address(to)).emit_transfer(value=u256(amount))
-            gl.trace("SETTLED", f"{memo}->{to}")
-        except BaseException as e:  # noqa: BLE001
-            gl.trace("SETTLE_FAILED", f"{memo}:{type(e).__name__}")
+        _ExternalAccount(Address(to)).emit_transfer(value=u256(amount))
+        gl.trace("SETTLED", f"{memo}->{to}")
 
     # ---------------------------------------------------------------- public reads
 
@@ -957,6 +1291,7 @@ class AgentBreaker(gl.Contract):
             "owner": self.owner,
             "deposited": int(self.deposited),
             "drawn": int(self.drawn),
+            "recovered": int(self.recovered),
             "allowance_remaining": int(self.allowance_remaining()),
             "underlying_allowance": self._raw_allowance(),
             "cut_active": self.cut_active(),

@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from fixtures import FIXTURES
+from fixtures import AGENT, FIXTURES
 
 
 def _digest(module, payload, agent, deposited=0):
@@ -29,8 +29,8 @@ def test_volatile_fields_do_not_change_the_digest(contract_module):
     noisy["duration_ms"] = 987654321
     noisy["schema"] = "agent-journal/1"
 
-    a = _digest(contract_module, base, "0x" + "cc" * 20, 10**21)
-    b = _digest(contract_module, noisy, "0x" + "cc" * 20, 10**21)
+    a = _digest(contract_module, base, AGENT, 10**21)
+    b = _digest(contract_module, noisy, AGENT, 10**21)
 
     assert a == b
     assert contract_module.digest_signature(a) == contract_module.digest_signature(b)
@@ -45,7 +45,7 @@ def test_step_counts_are_banded_not_counted(contract_module):
     here -- across a spread of multipliers, not just one.
     """
     base = FIXTURES["runaway"]["payload"]
-    agent = "0x" + "cc" * 20
+    agent = AGENT
 
     sixty = _digest(contract_module, base, agent, 10**24)
 
@@ -151,7 +151,7 @@ def test_deploy_time_policy_accepts_the_cap(direct_deploy):
 
 def test_retry_loop_signature_survives_reduction(contract_module):
     """The loop signal is concentration, not volume: 60 of one tool is EXTREME."""
-    d = _digest(contract_module, FIXTURES["runaway"]["payload"], "0x" + "cc" * 20, 10**24)
+    d = _digest(contract_module, FIXTURES["runaway"]["payload"], AGENT, 10**24)
     assert d["repeat_ratio_band"] == "EXTREME"
     assert d["single_target_share_band"] == "EXTREME"
     assert d["error_ratio_band"] == "EXTREME"
@@ -161,14 +161,14 @@ def test_retry_loop_signature_survives_reduction(contract_module):
 
 def test_varied_work_does_not_look_like_a_loop(contract_module):
     """Five varied steps over three tools and three destinations must not band as concentrated."""
-    d = _digest(contract_module, FIXTURES["benign"]["payload"], "0x" + "cc" * 20, 10**21)
+    d = _digest(contract_module, FIXTURES["benign"]["payload"], AGENT, 10**21)
     assert d["repeat_ratio_band"] in ("LOW", "MODERATE")
     assert d["single_target_share_band"] in ("LOW", "MODERATE")
     assert d["step_count_band"] == "FEW"
 
 
 def test_fanout_signature(contract_module):
-    d = _digest(contract_module, FIXTURES["fanout"]["payload"], "0x" + "cc" * 20, 10**21)
+    d = _digest(contract_module, FIXTURES["fanout"]["payload"], AGENT, 10**21)
     assert d["target_fanout_band"] == "MANY"
     assert d["single_target_share_band"] == "LOW"
 
@@ -179,7 +179,7 @@ def test_agent_identity_is_compared_not_stored(contract_module):
     The raw agent string must not survive into the digest -- it is attacker controlled, and it
     varies only in case between two fetches of the same document.
     """
-    d = _digest(contract_module, FIXTURES["foreign"]["payload"], "0x" + "cc" * 20, 10**21)
+    d = _digest(contract_module, FIXTURES["foreign"]["payload"], AGENT, 10**21)
     assert d["journal_found"] is True
     assert d["agent_matches"] is False
     assert "0xdd" not in json.dumps(d)
@@ -187,8 +187,8 @@ def test_agent_identity_is_compared_not_stored(contract_module):
 
 def test_agent_match_is_case_insensitive(contract_module):
     payload = dict(FIXTURES["benign"]["payload"])
-    payload["agent"] = ("0x" + "CC" * 20).lower()
-    assert _digest(contract_module, payload, "0x" + "cc" * 20, 10**21)["agent_matches"] is True
+    payload["agent"] = "0x" + AGENT[2:].upper()
+    assert _digest(contract_module, payload, AGENT, 10**21)["agent_matches"] is True
 
 
 def test_no_raw_identifiers_survive_reduction(contract_module):
@@ -197,7 +197,7 @@ def test_no_raw_identifiers_survive_reduction(contract_module):
     This is the property that makes the digest safe to show to consensus at all: the agent
     under scrutiny writes that document, so every identifier in it is an injection vector.
     """
-    d = _digest(contract_module, FIXTURES["runaway"]["payload"], "0x" + "cc" * 20, 10**24)
+    d = _digest(contract_module, FIXTURES["runaway"]["payload"], AGENT, 10**24)
     blob = json.dumps(d)
     for forbidden in ("api.partner.example", "http.get", "1750000900", "241100", "outcome"):
         assert forbidden not in blob
@@ -205,42 +205,42 @@ def test_no_raw_identifiers_survive_reduction(contract_module):
 
 def test_missing_journal_is_a_verdict_input_not_an_error(contract_module):
     for status in (404, 500, 0):
-        d = contract_module.digest_from_response(status, None, "0x" + "cc" * 20, 10**21)
+        d = contract_module.digest_from_response(status, None, AGENT, 10**21)
         assert d["journal_found"] is False
         assert d["note"] == f"HTTP_{status}"
 
 
 def test_unparseable_body_is_normalised_not_raised(contract_module):
-    d = contract_module.digest_from_response(200, b"<html>not json</html>", "0x" + "cc" * 20, 0)
+    d = contract_module.digest_from_response(200, b"<html>not json</html>", AGENT, 0)
     assert d["journal_found"] is False
     assert d["note"] == "UNPARSEABLE"
 
 
 def test_non_object_body_is_normalised(contract_module):
-    d = contract_module.digest_from_response(200, b"[1,2,3]", "0x" + "cc" * 20, 0)
+    d = contract_module.digest_from_response(200, b"[1,2,3]", AGENT, 0)
     assert d["journal_found"] is False
     assert d["note"] == "NOT_AN_OBJECT"
 
 
 def test_junk_steps_do_not_crash_the_reduction(contract_module):
     """A journal full of non-dicts must band to UNKNOWN rather than raise inside a consensus block."""
-    d = _digest(contract_module, {"steps": ["nope", 7, None, {"tool": "x"}]}, "0x" + "cc" * 20, 0)
+    d = _digest(contract_module, {"steps": ["nope", 7, None, {"tool": "x"}]}, AGENT, 0)
     assert d["journal_found"] is True
     assert d["spend_fraction_band"] == "UNKNOWN"
 
 
 def test_hex_and_decimal_spend_parse_identically(contract_module):
     """A journal reporting spend in 0x and in decimal must reduce to the same band."""
-    decimal = _digest(contract_module, {"steps": [], "spend": str(10**18)}, "0x" + "cc" * 20, 0)
-    hexed = _digest(contract_module, {"steps": [], "spend": hex(10**18)}, "0x" + "cc" * 20, 0)
+    decimal = _digest(contract_module, {"steps": [], "spend": str(10**18)}, AGENT, 0)
+    hexed = _digest(contract_module, {"steps": [], "spend": hex(10**18)}, AGENT, 0)
     assert decimal == hexed
     assert decimal["spend_band"] == "SMALL"
 
 
 def test_spend_fraction_is_measured_against_the_allowance(contract_module):
     journal = {"steps": [], "spend": 5 * 10**20}
-    under = _digest(contract_module, journal, "0x" + "cc" * 20, 10**22)
-    over = _digest(contract_module, journal, "0x" + "cc" * 20, 10**19)
+    under = _digest(contract_module, journal, AGENT, 10**22)
+    over = _digest(contract_module, journal, AGENT, 10**19)
     assert under["spend_fraction_band"] == "LOW"    # 5% of the allowance
     assert over["spend_fraction_band"] == "EXTREME"  # 50x the allowance
 

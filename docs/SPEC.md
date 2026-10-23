@@ -68,9 +68,10 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 2. Agent draws against its allowance via `draw(amount)`; draws succeed.
 3. A bystander (or the operator, or a watchdog) calls `open_case(payload_json)`, where the payload
    is a JSON object carrying `case_id`, `claim` and `journal_url`.
-4. The leader fetches the agent's journal from `journal_url`, reduces it to stable fields, and
-   asks the model for one of three verdicts. Validators independently re-fetch, re-reduce and
-   re-derive, comparing **only the enum**.
+4. The leader fetches the agent's signed journal envelope from `journal_url`, verifies that the
+   bound agent signed this exact contract, chain, case, claim, URL and journal bytes, then
+   reduces the journal to stable fields and asks the model for one of three verdicts. Validators
+   independently re-fetch, re-authenticate, re-reduce and re-derive, comparing **only the enum**.
 5. `CONFIRMED_MISBEHAVIOR` finalises → `allowance_remaining()` returns `0` until `expires_at`.
 6. After `expires_at`, `allowance_remaining()` returns the full prior value. No transaction
    from any human restores it.
@@ -88,11 +89,13 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 **In scope:**
 
 - One Intelligent Contract, `AgentBreaker`, in `contracts/agent_breaker.py`.
-- Stage 1: fetch an agent journal over HTTP, reduce it to a **stable-field digest** inside the
-  nondet block, with no model involved.
+- Stage 1: fetch an agent-signed `furlough/journal@2` envelope over HTTP, verify the bound
+  agent's secp256k1 signature over the contract, chain, case, claim, URL and journal bytes, then
+  reduce the journal to a **stable-field digest** inside the nondet block, with no model involved.
 - Stage 2: `run_nondet_unsafe` over a **three-value enum only**.
 - Stage 3: retain verdict, rationale, digest, window and provenance; all publicly readable.
-- Custodied GEN: `deposit`, `set_agent`, `draw`, `refund`, `allowance_remaining`.
+- Custodied GEN: `deposit`, `set_agent`, `draw`, `refund`, `allowance_remaining`, plus `reconcile`
+  and the refund callback for failed transfers.
 - Auto-expiry enforced in the read path, plus an explicit `reap_expired`.
 - A hermetic test suite with no network access.
 - A Next.js + TypeScript static site: walletless live board, evidence page, and wallet-signed
@@ -108,12 +111,13 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 - Appeals or counter-cases. There is no un-freeze path, by design.
 - Cross-chain settlement, VRF, oracles, price feeds.
 - A backend, hosted keys, or server-side accounts. The frontend is static and the wallet signs.
-- Authentication or rate limiting on public endpoints.
+- Access-control lists or rate limiting on public contract methods. Evidence authentication is
+  in scope; the reporter is not authenticated, but the journal must be signed by the bound agent.
 - Multiple agents per contract.
 
 **Deferred unless time allows**, in value-per-hour order:
 
-1. A `countersign`/`attest` path letting the agent acknowledge the journal digest.
+1. A funded live value loop, so deposit/draw/refund and recovery can be observed with real GEN.
 2. Per-tool-kind breakdown in the digest so validators can distinguish a benign retry loop
    from an injection-driven fan-out.
 
@@ -130,8 +134,9 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 - **Contract layer**: `AgentBreaker`, deployed to GenLayer Studionet (chain `61999`).
 - **External integrations**: one HTTP GET to a journal URL the case names, from inside the
   nondet block. One model inference. Nothing else. No API key, no paid service.
-- **Auth**: none. Cases are permissionless by design - the operator must not be able to
-  suppress a case against their own agent.
+- **Reporter auth**: none. Cases are permissionless by design - the operator must not be able
+  to suppress a case against their own agent. **Evidence auth**: the journal envelope must be
+  signed by the bound agent and bound to the exact contract, chain, case, claim, URL and bytes.
 - **Deployment target**: GenLayer Studionet via `genlayer-js`.
 
 ```
@@ -168,15 +173,21 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 | 1 | Operator funds | `deposit()` | Under-funding | Balance is read from contract state; no oracle |
 | 2 | Agent spends | `draw(amount)` | Breaker active → `UserError`; insufficient balance → `UserError` | A frozen agent simply cannot draw; the error is the safety property |
 | 3 | Bystander reports | `open_case(payload_json)` | Bad JSON / missing fields | `UserError` before any nondet call |
-| 4 | Leader fetch | `gl.nondet.web.get(journal_url)` | Non-200, unparseable, non-object | `digest_found=False` → prompt **must** yield `INSUFFICIENT_EVIDENCE` |
-| 5 | Reduction | `reduce_journal()` | Missing fields | Every field bands to `UNKNOWN`, which is itself stable |
-| 6 | Adjudication | `gl.nondet.exec_prompt(...)` | Model invents a fourth value, or returns non-JSON | Coerced to `INSUFFICIENT_EVIDENCE`; never obeyed |
-| 7 | Validator gate | `run_nondet_unsafe` | Validators disagree on the enum | Round aborts, nothing is admitted, nothing is cut |
-| 8 | Retention | `_record()` | - | Fully public via `get_case()` |
+| 4 | Leader fetch | `gl.nondet.web.get(journal_url)` | Non-200, unparseable, non-object, unsigned or bad signature | `digest_found=False`, `authenticated=False` → deterministic `INSUFFICIENT_EVIDENCE`, no model |
+| 5 | Authentication | `_verify_journal_envelope()` | Wrong schema, case, agent, URL, claim, signer or journal bytes | Rejected before reduction; no cut |
+| 6 | Reduction | `reduce_journal()` | Missing fields | Every field bands to `UNKNOWN`, which is itself stable |
+| 7 | Adjudication | `gl.nondet.exec_prompt(...)` | Model invents a fourth value, or returns non-JSON | Coerced to `INSUFFICIENT_EVIDENCE`; never obeyed |
+| 8 | Validator gate | `run_nondet_unsafe` | Validators disagree on the enum | Round aborts, nothing is admitted, nothing is cut |
+| 9 | Retention | `_record()` | - | Fully public via `get_case()` |
 
-Steps 4 and 6 cost money (model inference) and can be rate-limited. Step 4 is a plain HTTP GET
-against a URL the reporter chooses, which is why the output is constrained to three strings and
-why the reduction happens *before* anything consensus-bound sees the data.
+`draw` and `refund` settle synchronously: `_settle()` emits the transfer and the counter is
+committed only after it returns, so a synchronous failure leaves accounting untouched. A child
+that fails after finality is repaired by the callback or `reconcile()`, which credits `recovered`;
+allowance is `deposited - drawn + recovered`.
+
+Steps 4 and 7 make external calls. Step 4 is a plain HTTP GET against a URL the reporter chooses,
+which is why the output is constrained to three strings and why the reduction happens *before*
+anything consensus-bound sees the data. Step 7 spends model inference and can be rate-limited.
 
 ---
 
@@ -184,14 +195,17 @@ why the reduction happens *before* anything consensus-bound sees the data.
 
 - **Value safety**: the contract never confiscates. `deposit`/`refund` move native value;
   `draw` moves it against an allowance that only ever goes down and back up. A confirmed
-  verdict cannot destroy funds. Invariant asserted by test.
+  verdict cannot destroy funds. Transfers are emitted inside the calling turn, and a failed
+  child is repaired through the refund callback or `reconcile()`; the allowance is
+  `deposited - drawn + recovered`. Asserted by the custody and settlement tests.
 - **No un-freeze path**: there is deliberately no owner/admin method that lifts a cut early.
   The owner can change *future* policy (`set_default_cut_seconds`) but cannot shorten an
   already-armed window. This is the product.
-- **Permissionless reporting**: `open_case` has no access control, so the operator cannot
-  suppress a case against their own agent. The cost of that choice is that anyone can spend
-  model-inference budget by opening junk cases; bounded by requiring the case to reference a
-  journal URL and by rate-limiting being explicitly out of scope.
+- **Permissionless reporting, authenticated evidence**: `open_case` has no access control, so
+  the operator cannot suppress a case against their own agent. The journal, however, must carry
+  a signature bound to the agent, case, claim, URL, contract and chain; unsigned documents are
+  rejected before any model call. The remaining cost is a signed journal that can spend model
+  inference and, if the measurements support it, cut; a compromised key can sign a false loop.
 - **Prompt injection**: the claim and every journal field are attacker-controlled. They are
   labelled as data inside delimiters, and the output space is a three-value enum that the
   contract validates against `VALID_VERDICTS` before use. An injection can at worst cause
@@ -224,7 +238,7 @@ why the reduction happens *before* anything consensus-bound sees the data.
 Checked against the suite as it stands. `[x]` means a named test enforces it and would fail if the
 behaviour regressed; it does not mean a human eyeballed it once.
 
-- [x] `pytest` passes with no network access. *(87 tests)*
+- [x] `pytest` passes with no network access. *(106 tests)*
 - [x] The three verdicts are reachable and the suite asserts each one from recorded evidence.
 - [x] A confirmed verdict drives `allowance_remaining()` to `0` **before** `expires_at`.
 - [x] `allowance_remaining()` returns to its pre-case value **after** `expires_at`, with no
@@ -234,18 +248,23 @@ behaviour regressed; it does not mean a human eyeballed it once.
 - [x] An injected claim against benign evidence yields `FALSE_REPORT`.
 - [x] An injected claim cannot escape its delimiter and be read as an instruction.
 - [x] Out-of-enum model output is coerced to `INSUFFICIENT_EVIDENCE`, not obeyed.
+- [x] An unsigned, wrong-signer, tampered or replayed journal cannot cut; the case, claim and
+      URL bindings each have a test, and the contract/chain are in the canonical signed message.
+- [x] A synchronous transfer failure leaves accounting untouched, and a later failure is
+      credited through the callback or `reconcile()`.
 - [x] A ledger test proves contract value is conserved across every path.
 - [x] An out-of-range cut policy is rejected at deploy rather than silently defaulted.
 - [x] Every timestamp spelling the node can supply collapses to one canonical form.
 - [ ] `genvm-lint check` passes. **Lint rules run clean; its SDK-load validation cannot complete
       on this machine** - the `runners/py-genlayer/*.tar` bundle entries have been pruned from
       `~/.cache`. The same failure occurs on known-good reference contracts, so it is
-      environmental. The 87-test suite runs the contract against a real GenVM bundle and is the
+      environmental. The 106-test suite runs the contract against a real GenVM bundle and is the
       stronger check.
-- [x] Deployed to Studionet and at least one case finalised live. No funded key was needed -
-      Studionet is zero-fee. Contract `0x7Ee18844C80395E23f06Cf75D2B998723E36804f`; live case
-      `0x2e466d7a…f760014` reached `CONFIRMED_MISBEHAVIOR` under real validator LLMs and the cut
-      lifted by clock alone. The funded value loop was not exercised live; see
+- [x] Deployed to Studionet and cases finalised live. No funded key was needed - Studionet is
+      zero-fee. Contract `0x84795e25Ae0BF5337829b614493D054c1c15c907`; signed case
+      `0xe476c030…69f5d3` reached `CONFIRMED_MISBEHAVIOR`, signed benign case `0xb6090a9f…414ca8`
+      reached `FALSE_REPORT`, and unsigned case `0xfcac4e30…f7f8151` reached
+      `INSUFFICIENT_EVIDENCE`. The funded value loop was not exercised live; see
       [`SUBMISSION.md`](SUBMISSION.md) §6.
 - [ ] README setup steps verified on a clean environment.
 

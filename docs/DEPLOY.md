@@ -36,15 +36,17 @@ re-deploying, because a second deploy creates a second contract.
 
 ## Live deployment
 
-Deployed and exercised on Studionet on 2026-10-20:
+Deployed and exercised on Studionet on 2026-10-23:
 
 | | |
 | --- | --- |
-| contract | `0x7Ee18844C80395E23f06Cf75D2B998723E36804f` |
-| deploy tx | `0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905` - FINALIZED |
-| live cases | `live-runaway` tx `0x2e466d7a…f760014`, `cli-check-1` tx `0x7dda175b…a0887b`, `ui-check-1` tx `0x28f69b61…259379` - all FINALIZED |
-| live verdict | `CONFIRMED_MISBEHAVIOR` three times; every cut lifted by the clock with no transaction |
-| SDK write path | `genlayer-js 1.2.0` with a local testnet key re-set the window to 900s: tx `0xc34b234a323707caae9c06d2e8fbd3b2e81ba807ea7cac4f1cbe0cd1e5851f8d` - FINALIZED (not a MetaMask/browser transaction) |
+| contract | `0x84795e25Ae0BF5337829b614493D054c1c15c907` |
+| deploy tx | `0x04d2cfa2dc7c7dc66b0c6d4946b9081b5fc7dd6ce938de4b17a8e934ef53e2f1` - FINALIZED |
+| bound agent | `0x7adE3852187F6FDAC7798c826620F49a9D529964` |
+| signed case | `live-v2-auth-1` tx `0xe476c03040aaf16f8c4c68939a7ed60bd2990cfcda77e10fb89efa64fc69f5d3` - `CONFIRMED_MISBEHAVIOR`, `authenticated=True` |
+| benign signed case | `live-v2-benign-1` tx `0xb6090a9fb5826496f202617da6be019db0ee210e1bbed9231b67c89474414ca8` - `FALSE_REPORT`, `authenticated=True` |
+| unsigned case | `live-v2-unsigned-1` tx `0xfcac4e30bd25c080c93c6ff90f0e7c054124821c6506055ae8949d864f7f8151` - `INSUFFICIENT_EVIDENCE`, `authenticated=False`, no model |
+| live verdict | one signed cut; it lifted by the clock with no transaction |
 
 The contract **must** carry the runner header on line 1. Without it Studionet finalizes the
 deploy and then cannot execute the contract at all (`invalid_contract absent_runner_comment`),
@@ -70,10 +72,25 @@ That hash is the canonical one from the GenLayer docs. Do not add a second runne
    });
    ```
 
-2. **Publish a journal.** The agent writes a window of its own behaviour to a URL and passes
-   that URL to `open_case`. Schema is in `tests/direct/fixtures.py`.
+2. **Publish a signed journal envelope.** The agent writes a window of its own behaviour, then
+   signs the exact journal bytes, contract, chain, case id, claim and final URL. The contract
+   rejects a raw or unsigned journal. Host a placeholder at the final URL, sign, then replace it
+   with the envelope:
 
-3. **Open a case.** Permissionless - anyone may call it.
+   ```bash
+   set -a; . ./.env; set +a
+   python3.12 scripts/sign_journal.py \
+     --contract 0x<deployed> --case-id demo-runaway \
+     --claim "The agent hammered one failing endpoint 60 times and burned its allowance." \
+     --journal-url https://example.com/journal/demo-runaway.json \
+     --journal-file journal.json --out envelope.json
+   ```
+
+   `GENLAYER_AGENT_PRIVATE_KEY` is the testnet-only key for the bound agent. The signature binds
+   the URL, so the URL must exist before signing and must serve the finished envelope.
+
+3. **Open a case.** Permissionless - anyone may call it, but the URL must serve the signed
+   envelope.
 
    ```json
    {
@@ -84,7 +101,8 @@ That hash is the canonical one from the GenLayer docs. Do not add a second runne
    ```
 
 4. **Read the outcome.** `get_case(case_id)` returns the verdict, rationale, digest and the
-   whole window. `is_cut()` and `seconds_remaining()` need no wallet.
+   whole window. `digest.authenticated` tells you whether the bound agent signed it.
+   `is_cut()` and `seconds_remaining()` need no wallet.
 
 ## Smoke test after deploy
 
@@ -92,7 +110,7 @@ The loop is scripted; one command reads it, one files a case:
 
 ```bash
 python3.12 scripts/live_check.py status
-python3.12 scripts/live_check.py open-case --journal-url URL --claim "..."
+python3.12 scripts/live_check.py open-case --journal-url SIGNED_ENVELOPE_URL --claim "..."
 ```
 
 In contract terms:
@@ -101,20 +119,19 @@ In contract terms:
 # 1. allowance before any case
 allowance_remaining() == deposited
 
-# 2. open a case against a runaway journal, wait for FINALIZED
-#    LIVE: live-runaway, cli-check-1 and ui-check-1 -- all CONFIRMED_MISBEHAVIOR, is_cut() == true
-get_verdict("live-runaway") == "CONFIRMED_MISBEHAVIOR"
+# 2. open a case against a signed runaway journal, wait for FINALIZED
+#    LIVE: live-v2-auth-1 -- CONFIRMED_MISBEHAVIOR, authenticated=True, is_cut() == true
+get_verdict("live-v2-auth-1") == "CONFIRMED_MISBEHAVIOR"
+get_case("live-v2-auth-1").digest.authenticated == true
 is_cut() == true
 allowance_remaining() == 0
 
 # 3. do nothing. After default_cut_seconds:
 is_cut() == false
 allowance_remaining() == deposited      # restored with no transaction
-#    LIVE: the lift was observed three times -- live-runaway at 2026-10-20T18:34:07Z,
-#    cli-check-1 at 21:54:21Z and ui-check-1 at 23:21:01Z -- with no transaction in between.
-#    ui-check-1 ran in a 180s demo window; the 900s default was restored afterwards.
-#    The value half of steps 1 and 3 (deposited > 0) was skipped by decision and is covered
-#    by the custody tests only.
+#    LIVE: the signed cut armed at 2026-10-23T00:54:12Z and expired at 01:09:12Z, with no
+#    transaction in between. The value loop (deposited > 0) was skipped by decision and is
+#    covered by the custody and settlement tests.
 ```
 
 Step 3 is the whole product. If it needs a human to complete, the deployment is wrong.
@@ -148,7 +165,7 @@ Neither host needs environment variables. The contract address and chain constan
 | `cannot import name 'gl' from 'genlayer'` | a **newer, incompatible** runner was extracted into `~/.cache` by a previous `genvm-lint check`. See "the cache trap" below. `python3.12 scripts/check_env.py --fix` |
 | `HTTP Error 404` fetching `genvm-universal.tar.xz` | upstream re-cut the v0.3.0-rc7 release and removed the asset `genlayer-test` 0.29.2 requests. Seed the checksum-pinned mirror: `python3.12 scripts/check_env.py --fetch` |
 | `No py-genlayer runners found in tarball` | the SDK bundle in `~/.cache` was clobbered. `rm -rf ~/.cache/gltest-direct/extracted` and re-run |
-| `gas limit too high` on Asimov | the network caps one transaction at 2^24 gas. This source estimates 33.2M there because pubdata is priced per byte; deploy to Studionet, or keep the source under roughly 19.8 KB. |
+| `gas limit too high` on Asimov | the network caps one transaction at 2^24 gas. This source is about 53 KB and its pubdata cost is far over that cap; deploy to Studionet, or keep the source under roughly 19.8 KB. |
 | Deploy FINALIZED but every read says `Contract … not found` | the contract has no runner header. GenVM rejected the code with `invalid_contract absent_runner_comment`; add the `# { "Depends": "py-genlayer:…" }` line as line 1. |
 | `Studio-dev resets periodically` | expected. Re-deploy. |
 | Deploy hangs on rotations | lower `--consensus-max-rotations`, or check the key is funded. |
@@ -176,7 +193,7 @@ its own it does not prevent this.
 ```bash
 python3.12 scripts/check_env.py          # report
 python3.12 scripts/check_env.py --fix    # quarantine the unusable runner
-python3.12 -m pytest -q                  # expect: 87 passed
+python3.12 -m pytest -q                  # expect: 106 passed
 ```
 
 Run `--fix` after any `genvm-lint check`. The script moves the bad runner to
@@ -186,5 +203,5 @@ so an in-place rename leaves the broken runner winning the sort.
 > `genvm-lint check` runs its lint rules clean on this contract, but its SDK-load validation
 > cannot complete on this machine - the `runners/py-genlayer/*.tar` bundle entries have been
 > pruned from `~/.cache`. The same failure occurs on known-good reference contracts, so it is an
-> environment limitation rather than a defect in this contract. The 87-test suite runs the
+> environment limitation rather than a defect in this contract. The 106-test suite runs the
 > contract against a real GenVM bundle and is the stronger check.

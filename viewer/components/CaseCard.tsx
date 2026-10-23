@@ -40,6 +40,11 @@ export default function CaseCard({ entry, now }: { entry: CaseRecord; now: numbe
       <details>
         <summary>rationale and digest</summary>
         <div className="row">{entry.rationale}</div>
+        <div className="row">
+          journal fetched {entry.digest?.journal_found ? "true" : "false"} - signed by the bound
+          agent {entry.digest?.authenticated ? "true" : "false"}
+          {entry.digest?.note ? ` (${entry.digest.note})` : ""}
+        </div>
         <div className="sig">{entry.digest?.signature ?? "no digest recorded"}</div>
         <div className="row">
           finalized {entry.finalized ?? "?"} - validator round completed{" "}

@@ -26,7 +26,7 @@ export default function LiveStrip() {
           cases filed <b>{stats ? stats.cases : "-"}</b>
         </span>
         <span className="fact">
-          cuts armed <b>{stats ? stats.cuts : "-"}</b>
+          cuts ever <b>{stats ? stats.cuts : "-"}</b>
         </span>
         <span className="fact">
           default window <b>{stats ? `${stats.default_cut_seconds}s` : "-"}</b>

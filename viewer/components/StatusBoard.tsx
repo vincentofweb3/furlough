@@ -11,10 +11,11 @@ function facts(stats: Stats): Array<[string, string]> {
     ["owner (funds it, cannot suppress a case)", stats.owner],
     ["deposited", formatGen(stats.deposited)],
     ["drawn", formatGen(stats.drawn)],
+    ["recovered from failed transfers", formatGen(stats.recovered)],
     ["allowance remaining", formatGen(stats.allowance_remaining)],
     ["underlying allowance", formatGen(stats.underlying_allowance)],
     ["default cut window", `${stats.default_cut_seconds}s (max ${stats.max_cut_seconds}s)`],
-    ["cuts armed / cases filed", `${stats.cuts} / ${stats.cases}`],
+    ["cuts ever / cases filed", `${stats.cuts} / ${stats.cases}`],
   ];
 }
 
@@ -68,7 +69,7 @@ export default function StatusBoard() {
                 <div className="value">{value}</div>
               </div>
             ))
-          : Array.from({ length: 8 }).map((_, index) => (
+          : Array.from({ length: 9 }).map((_, index) => (
               <div className="card skeleton" key={index}>
                 <div className="label">reading</div>
                 <div className="value">-</div>
@@ -85,8 +86,9 @@ export default function StatusBoard() {
 
       <p className="muted mt-28">
         A cut is enforced by the contract itself: while the window is open, <code>draw()</code> is
-        refused before any state changes. When the window passes, the allowance restores itself with
-        no transaction and no human. Last refreshed {updated ?? "-"}.
+        refused before any state changes. Value transfers are emitted inside the same turn and a
+        failed child is repaired by the refund callback or `reconcile()`. When the window passes,
+        the allowance restores itself with no transaction and no human. Last refreshed {updated ?? "-"}.
       </p>
     </div>
   );

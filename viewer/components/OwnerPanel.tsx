@@ -178,7 +178,9 @@ export default function OwnerPanel() {
         <div className="card">
           <div className="label">Custody</div>
           <div className="value">{formatGen(stats.deposited)} deposited</div>
-          <div className="small">{formatGen(stats.drawn)} drawn</div>
+          <div className="small">
+            {formatGen(stats.drawn)} drawn - {formatGen(stats.recovered)} recovered
+          </div>
         </div>
         <div className="card">
           <div className="label">Allowance right now</div>
@@ -277,7 +279,7 @@ export default function OwnerPanel() {
               name="reap"
               value={reapValue}
               onChange={(event) => setReapValue(event.target.value)}
-              placeholder="ui-check-1"
+              placeholder="live-v2-auth-1"
               spellCheck={false}
               autoComplete="off"
               disabled={Boolean(busy)}

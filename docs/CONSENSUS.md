@@ -112,6 +112,40 @@ distinction survive reduction - a 60-vs-61 count difference would not.
 
 ---
 
+## 4a. Authenticated evidence
+
+The reporter chooses the URL, so a document alone is not evidence about the bound agent. Before
+any reduction or model call, the contract checks a `furlough/journal@2` envelope:
+
+- `schema` is exactly the supported version;
+- `case_id` and `agent` match the filing and the bound address;
+- `pubkey` hashes to the bound agent;
+- `signature` is a valid low-s secp256k1 signature over a canonical message that binds the
+  contract address, chain id, case id, claim, agent, journal URL and the exact journal bytes.
+
+The message hashes every variable-length field, so a newline inside a case id or claim cannot
+move a field boundary. Verification runs inside the nondet block and is deterministic, so every
+validator reaches the same answer. Only after authentication does the journal reach
+`reduce_journal` and the model.
+
+- `test_unsigned_reporter_document_cannot_cut` - the original vulnerability, pinned. No model is
+  consulted and no cut is armed.
+- `test_a_wrong_signer_cannot_cut`, `test_tampered_journal_bytes_cannot_cut` - a valid signature
+  from the wrong key, or a signed envelope whose journal bytes were edited, is rejected.
+- `test_a_signature_is_bound_to_the_case_id`, `test_a_signature_is_bound_to_the_claim`,
+  `test_a_signature_is_bound_to_the_journal_url` - an envelope signed for another filing cannot
+  be replayed into this one.
+- `test_a_genuine_agent_signature_is_recorded`, `test_any_reporter_may_still_file_with_genuine_evidence` -
+  the positive controls: authentication does not gate who may report.
+- `test_a_foreign_journal_signed_by_the_agent_is_not_evidence_about_this_agent` - a genuine
+  signature proves provenance, not relevance; `agent_matches` still has to hold.
+
+Authentication proves the bound agent signed the telemetry. It does not prove the telemetry is
+true: a compromised agent key can sign a false journal. That is a key-management limit, stated
+in §11, not a reason to accept unsigned documents.
+
+---
+
 ## 5. Why rounds settle
 
 A round fails when validators compute different enums. Three things prevent that from becoming
@@ -119,14 +153,17 @@ routine:
 
 1. **The evidence is banded**, so ordinary drift does not produce divergence (§4).
 2. **Only the enum is compared**, so prose divergence cannot (§3).
-3. **A missing journal is decided deterministically.** If the fetch fails, the contract never
-   consults a model at all - it returns `INSUFFICIENT_EVIDENCE` itself. This removes the largest
-   source of noise and the largest injection surface from the path entirely.
+3. **Missing or unauthenticated evidence is decided deterministically.** If the fetch fails, the
+   envelope is malformed, or the signature does not verify, the contract never consults a model
+   at all - it returns `INSUFFICIENT_EVIDENCE` itself. This removes the largest source of noise
+   and the largest injection surface from the path entirely.
    - `test_missing_journal_never_reaches_the_model` - asserts that *no model mock matched at
      all*, rather than that the verdict happened to come out right. Asserting the verdict proved
      nothing: the `journal_belongs_to_the_bound_agent: False` mock also matches a missing
      journal's prompt and returns the same verdict, so deleting the short-circuit from
      `leader_fn` left the suite green.
+   - `test_unsigned_reporter_document_cannot_cut` - same assertion for a readable but unsigned
+     document.
    - `test_a_reachable_journal_does_reach_the_model` - the control, so the assertion above cannot
      pass for the wrong reason.
 
@@ -187,6 +224,24 @@ open and the full underlying balance once the window closes.
 the operator withdraws the balance and funds a fresh wallet.
 - `test_refund_cannot_launder_a_live_cut`
 
+### Settlement is atomic or repaired
+
+`_settle` emits the EVM value transfer inside the calling turn. It does not swallow an error:
+the caller commits `drawn` or `deposited` only after the emit returns, so a synchronous failure
+leaves the accounting untouched. A child transaction that fails after finality returns its value
+through `__on_errored_message__`, which credits `recovered`; `reconcile()` observes the same
+surplus from the real contract balance if a node does not invoke the callback. The allowance is
+`deposited - drawn + recovered`, so a failed transfer can never enrich the agent and can always
+be retried.
+
+- `test_synchronous_draw_failure_reverts_all_accounting`
+- `test_synchronous_refund_failure_reverts_all_accounting`
+- `test_successful_transfer_moves_value_and_keeps_accounting`
+- `test_failed_child_draw_is_recovered_by_the_callback`
+- `test_failed_child_refund_is_recovered_by_the_callback`
+- `test_reconcile_recovers_a_missing_callback`, `test_reconcile_is_idempotent`
+- `test_recovered_value_can_be_drawn_again`, `test_reconcile_does_not_credit_a_short_balance`
+
 ---
 
 ## 8. Nobody performs the cut, and nobody lifts it
@@ -233,10 +288,12 @@ binding case.
 misbehaved, so gating this on the owner would make the product useless - a cut only a trusting
 owner can trigger is not a breaker.
 
-The cost is real: anyone can spend adjudication budget by filing junk cases against a URL they
-control. This is accepted, and bounded three ways - the case must reference a journal URL, the
-output is constrained to three strings, and a cut expires on its own. A rate limit or a bond is
-the obvious next step and is explicitly out of scope.
+The cost is real but smaller than it looks: an unsigned or unreachable document is rejected
+before any model call, so a stranger cannot cut the agent. A signed document requires the bound
+agent's key. The remaining attack is a signed journal - genuine or from a compromised key -
+which can spend model inference and, if the measured pattern supports it, cut. Key compromise is
+§11. The case must still reference a journal URL, the output is constrained to three strings,
+and a cut expires on its own. A rate limit or a bond remains out of scope.
 
 Note the asymmetry with §7: junk cases cost model inference and nothing else. They cannot move
 value. That asymmetry is why permissionlessness is affordable here.
@@ -263,19 +320,22 @@ never lifts or one that lifts instantly, and neither is visible from reading the
 Stated plainly rather than left to be discovered:
 
 - **Not audited.** This is a testnet Builder Program contribution. Do not use it with real value.
-- **The journal is trusted infrastructure.** Validators independently fetch it, but nothing
-  proves the agent wrote it rather than a party posing as the agent. Committing a digest the
-  agent has signed, and checking that signature against the bound address, is the obvious fix
-  and is the first thing to build after this.
+- **Authenticated is not truthful.** The contract proves the bound agent's key signed this exact
+  case, claim, URL and journal bytes. A compromised agent key can still sign false telemetry, and
+  a journal host that goes away yields `INSUFFICIENT_EVIDENCE`. Key custody and truthful
+  telemetry remain the operator's problem.
+- **No funded live value loop.** The v2 live deployment has `deposited == 0`, so the transfer
+  path is exercised by the settlement tests, not with live GEN. The signed-cut and unsigned-
+  rejection paths are live.
 - **Bands are hand-calibrated.** The edges in `_STEP_BANDS` and friends were chosen against the
   fixtures in `tests/direct/fixtures.py`. They are plausible, not validated against real agent
   traffic. A production version would want the bands derived from observed distributions, and
   that is a governance problem as much as an engineering one.
-- **Value settlement is best-effort.** SDK `v0.3.0-rc7` does not expose a chain-layer EOA
-  transfer helper, so `_settle` uses `gl.get_contract_at(...).emit_transfer(...)` inside a
-  `try`. On localnet this is a traced no-op. This does not weaken the breaker: the allowance is
-  debited before settlement is attempted, so a settlement failure can never enrich the agent -
-  it can only fail to pay it.
+- **Settlement recovery depends on GenVM behaviour.** The contract emits an EVM transfer and
+  relies on `__on_errored_message__` or the permissionless `reconcile()` fallback to restore a
+  child that fails after finality. Both paths are tested, but a node that neither invokes the
+  callback nor exposes the surplus would leave the transfer unrepaired until the balance changes.
+  No path can credit value that is not actually in the contract.
 - **The hermetic gate does not prove two different real models agree.** The test model is a
   deterministic stand-in keyed on the measured bands. That it is keyed on the *evidence* rather
   than on the expected answer is what makes the gate meaningful, but proving real inter-model

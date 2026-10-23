@@ -1,7 +1,7 @@
 import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 
-export const CONTRACT = "0x7Ee18844C80395E23f06Cf75D2B998723E36804f";
+export const CONTRACT = "0x84795e25Ae0BF5337829b614493D054c1c15c907";
 export const EXPLORER = "https://explorer-studio.genlayer.com";
 export const REFRESH_MS = 15000;
 export const STUDIONET_CHAIN_ID = 61999;
@@ -12,6 +12,7 @@ export type Stats = {
   owner: string;
   deposited: number;
   drawn: number;
+  recovered: number;
   allowance_remaining: number;
   underlying_allowance: number;
   default_cut_seconds: number;
@@ -31,7 +32,13 @@ export type CaseRecord = {
   submitted_at: string;
   verdict: string;
   rationale: string;
-  digest?: { signature?: string } & Record<string, unknown>;
+  digest?: {
+    signature?: string;
+    journal_found?: boolean;
+    authenticated?: boolean;
+    agent_matches?: boolean;
+    note?: string;
+  } & Record<string, unknown>;
   cut: boolean;
   armed_at?: string;
   expires_at?: string;

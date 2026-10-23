@@ -217,12 +217,7 @@ def test_missing_fields_are_rejected(breaker, direct_vm):
 
 def test_cases_are_permissionless(breaker, direct_vm):
     """Anyone may open a case. The operator must not be able to suppress one against itself."""
-    direct_vm.sender = "0x" + "99" * 20  # neither owner, agent, nor reporter
-    breaker.open_case(json.dumps({
-        "case_id": "stranger",
-        "claim": "the agent is looping",
-        "journal_url": "https://journal.test/runaway",
-    }))
+    open_case(breaker, direct_vm, "runaway", case_id="stranger", sender="0x" + "99" * 20)
     assert breaker.get_verdict("stranger") == "CONFIRMED_MISBEHAVIOR"
 
 
@@ -232,12 +227,7 @@ def test_an_over_long_case_id_is_rejected(breaker, direct_vm):
     `case_id` is a storage key and a public record entry, so it is rejected rather than truncated --
     silently rewriting it would let two different filings collide on one record.
     """
-    direct_vm.sender = REPORTER
-    breaker.open_case(json.dumps({
-        "case_id": "x" * 128,
-        "claim": "the agent is looping",
-        "journal_url": "https://journal.test/runaway",
-    }))
+    open_case(breaker, direct_vm, "runaway", case_id="x" * 128)
     with pytest.raises(Exception):
         breaker.open_case(json.dumps({
             "case_id": "x" * 129,

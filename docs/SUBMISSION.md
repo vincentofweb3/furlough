@@ -5,31 +5,32 @@ points.genlayer.com) asks for, in the order it is asked for. Steward-reviewed on
 words - **novelty, complexity, impact** - with an 18.5% acceptance rate, so the job is to make
 the argument easy to check rather than to argue it hard.
 
-Current status is honest and marked: **deployed to Studionet and exercised live** - three real
-cases reached `CONFIRMED_MISBEHAVIOR` under validator LLMs. See §3 and §6.
+Current status is honest and marked: **v2 is deployed to Studionet and exercised live.** The two
+rejection findings are now covered by live evidence - an unsigned journal is rejected before any
+model call, and a signed journal still cuts. See §3 and §6.
 
 ---
 
 ## 1. Contribution description
 
-Paste this into the contribution form. It is just under 150 words on purpose.
+Paste this into the contribution form. It is under 150 words on purpose.
 
-> **Furlough** adjudicates an autonomous AI agent's own published telemetry and, on a
-> `CONFIRMED_MISBEHAVIOR` verdict, cuts the agent's custodied GEN spend allowance to zero until
-> a deadline that expires on its own.
+> **Furlough** adjudicates an autonomous AI agent's telemetry and, on a CONFIRMED_MISBEHAVIOR
+> verdict, cuts the agent's custodied GEN allowance to zero until a deadline that expires
+> on its own.
 >
 > The cut is performed by validator consensus and lifted by a clock - never by a human. Anyone
-> may open a case, so the operator cannot suppress a report against its own agent. A confirmed
-> verdict suspends access to funds; it never destroys them.
+> may open a case, so the operator cannot suppress a report against its own agent. The submitted
+> journal must be signed by the bound agent over this contract, chain, case, claim, URL and
+> journal bytes; unsigned or replayed evidence is rejected before a model call. A confirmed
+> verdict suspends access; it never destroys funds.
 >
-> Validators must agree while independently re-fetching a document that is still changing: the
-> journal is reduced to a banded, identifier-free digest before anything crosses the consensus
-> boundary, and only a three-value enum is compared - never free-text rationale, which two
-> models will never write identically.
+> Validators independently re-fetch and re-authenticate, reduce the journal to a banded,
+> identifier-free digest, and compare only a three-value enum - never free-text rationale.
 >
-> Deployed to Studionet (`0x7Ee18844C80395E23f06Cf75D2B998723E36804f`) with 87 hermetic tests
-> and a live status board with wallet consoles. Three live cases reached
-> `CONFIRMED_MISBEHAVIOR`; every cut lifted itself.
+> Deployed to Studionet (`0x84795e25Ae0BF5337829b614493D054c1c15c907`) with 106 hermetic tests.
+> A signed case reached CONFIRMED_MISBEHAVIOR, an unsigned copy INSUFFICIENT_EVIDENCE, and a
+> signed benign case FALSE_REPORT.
 
 ---
 
@@ -45,20 +46,37 @@ live form.
 | One-liner | An adjudicated circuit breaker for autonomous AI agents: consensus cuts the spend allowance, and a clock restores it. |
 | Description | §1 above - under 150 words, covers the problem, mechanism and live evidence |
 | Logo | `viewer/public/logo.png` - 1024x1024 RGBA PNG, 24 KB (portal accepts PNG/JPEG/WebP, 128-2048 px, max 2 MB) |
-| Primary tag | **Tools & Infrastructure** (or the closest infrastructure tag the portal offers) |
-| Specific focus | Pick the two closest topics the portal offers under that tag - **agent infrastructure** first, **AI governance / adjudication** second. The mechanism sits at the intersection. |
+| Primary tag | **AI & Agents** (the closest second is Dispute Resolution, but the product is agent infrastructure) |
+| Specific focus | Pick the two closest topics the portal offers under **AI & Agents** - **agent infrastructure / custody** first, **AI safety or governance** second. |
 | Website | https://furlough-dt8b.vercel.app/ |
 | GitHub | https://github.com/vincentofweb3/furlough |
 | X / Discord / Telegram | Only if a project account exists; leave blank rather than invent one |
-| Deployment | `https://explorer-studio.genlayer.com/address/0x7Ee18844C80395E23f06Cf75D2B998723E36804f` - Studio, the network the contract is on |
-| How to test | 1) Open the status board and confirm `OPERATING`, 3 cases, 900s default. 2) `python3.12 scripts/check_env.py && python3.12 -m pytest -q` -> `87 passed`. 3) `python3.12 scripts/live_check.py status` -> live contract, three `CONFIRMED_MISBEHAVIOR` cases, every window expired. 4) Open `/verify/` for tx-by-tx evidence and `/report/` for the console. 5) Read the contract on Studio Explorer; no transaction lifted any cut. |
-| Expected verification outcome | The contract reads `OPERATING` with three `CONFIRMED_MISBEHAVIOR` cases; every cut lifted at its deadline with no transaction; the hermetic suite is `87 passed`; live reads need no wallet. |
-| Evidence | Contract page above; deploy tx https://explorer-studio.genlayer.com/tx/0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905; live txs https://explorer-studio.genlayer.com/tx/0x2e466d7a8e0d17380a7ba29ffdfb12a6ff2fec90df5ecd1c6bff2eef5f760014, https://explorer-studio.genlayer.com/tx/0x7dda175bfadf3226fbf6de9c9326fb339e19f51aa256a756cfae77f2a2a0887b, https://explorer-studio.genlayer.com/tx/0x28f69b61edd599ade8ecacae61dcdfb92b005a542ea8e36f154f2eb58c259379; https://github.com/vincentofweb3/furlough#readme; https://github.com/vincentofweb3/furlough/blob/master/references/traceability.md |
+| Deployment | `https://explorer-studio.genlayer.com/address/0x84795e25Ae0BF5337829b614493D054c1c15c907` - Studio, the network the contract is on |
+| How to test | See "How-to path" below - five walletless steps |
+| Expected verification outcome | See the exact copy below the steps |
+| Evidence | Contract page above; deploy tx https://explorer-studio.genlayer.com/tx/0x04d2cfa2dc7c7dc66b0c6d4946b9081b5fc7dd6ce938de4b17a8e934ef53e2f1; signed case https://explorer-studio.genlayer.com/tx/0xe476c03040aaf16f8c4c68939a7ed60bd2990cfcda77e10fb89efa64fc69f5d3; unsigned case https://explorer-studio.genlayer.com/tx/0xfcac4e30bd25c080c93c6ff90f0e7c054124821c6506055ae8949d864f7f8151; benign case https://explorer-studio.genlayer.com/tx/0xb6090a9fb5826496f202617da6be019db0ee210e1bbed9231b67c89474414ca8; https://github.com/vincentofweb3/furlough#readme; https://github.com/vincentofweb3/furlough/blob/master/references/traceability.md |
 | Demo video | Not present. The portal's `Demo URL (YouTube or X) · required` field is labelled **Agent Tank hackathon**, whose build window closed 17 September 2026. If the live form asks for a demo URL, that is an Agent Tank submission, not this Builder project package - stop and flag it. |
+
+### How-to path
+
+Use these five steps in the portal's **How-to** section.
+
+| # | Optional heading | Instruction |
+| --- | --- | --- |
+| 01 | Open the live board | Go to https://furlough-dt8b.vercel.app/live/. No wallet is needed. Wait for the status to load and confirm `OPERATING`, network `Studionet - chain 61999`, `default cut window 900s`, and 3 cases on record. |
+| 02 | Read the signed case | Find `live-v2-auth-1`. Confirm verdict `CONFIRMED_MISBEHAVIOR`, `authenticated=True`, cut armed `2026-10-23T00:54:12Z`, expires `2026-10-23T01:09:12Z`, and the line "lifted by the clock, no transaction". |
+| 03 | Verify both transactions | Open https://furlough-dt8b.vercel.app/verify/. Find `live-v2-auth-1`, open tx `0xe476c03040aaf16f8c4c68939a7ed60bd2990cfcda77e10fb89efa64fc69f5d3` in Studio Explorer, and confirm `FINALIZED` / `CONFIRMED_MISBEHAVIOR`. Then open `live-v2-unsigned-1` tx `0xfcac4e30bd25c080c93c6ff90f0e7c054124821c6506055ae8949d864f7f8151`; confirm `FINALIZED` / `INSUFFICIENT_EVIDENCE`. |
+| 04 | Confirm there was no unlock | On the same `/verify/` page, scroll to the cut table. Confirm `live-v2-auth-1` lists `0` unlock txs and "by the clock", armed `00:54:12Z`, deadline `01:09:12Z`, lifted `01:09:12Z`. The unsigned case has no cut at all. |
+| 05 | Run the tests | Clone https://github.com/vincentofweb3/furlough and run `python3.12 scripts/check_env.py --fetch` once, then `python3.12 -m pytest -q`. Expect `106 passed`, with no network and no API key during the suite. |
+
+**Expected verification outcome - copy this:**
+
+> Existing Studionet deployment, not newly generated. The path shows a working breaker: `OPERATING` on chain 61999, 3 cases filed, 900s default. `live-v2-auth-1` is signed, `CONFIRMED_MISBEHAVIOR`, and its cut lifted at `2026-10-23T01:09:12Z` by the clock. `live-v2-unsigned-1` is the same journal bytes without a signature and is `INSUFFICIENT_EVIDENCE` - no model, no cut. `live-v2-benign-1` is signed and `FALSE_REPORT`. The cut table shows 0 unlock txs; tests pass 106/106. Contract: `0x84795e25Ae0BF5337829b614493D054c1c15c907`. Read-only: no wallet or gas.
 
 **Form honesty note:** use §4 for the limits. Do not imply the funded value loop ran live or that
 a case was filed through MetaMask; neither happened. The three live cases were filed through the
-CLI, and the SDK write validates encoding and finality, not browser-wallet UX.
+CLI, and the updated report console has not been exercised through a browser wallet yet. The SDK
+write path was validated by one owner-policy transaction on the previous deployment.
 
 ---
 
@@ -67,12 +85,14 @@ CLI, and the SDK write validates encoding and finality, not browser-wallet UX.
 - [x] Public - committed and pushed to `github.com/vincentofweb3/furlough`
 - [x] `README.md` states the problem, the mechanism and the honest limits in the first screen
 - [x] `LICENSE` present (MIT)
-- [x] CI badge green - `.github/workflows/tests.yml`, one command, no network needed
+- [ ] CI badge green for v2 - `.github/workflows/tests.yml` runs the suite on each push; the v2
+      commit/push is pending, so the local 106-test run is the current evidence
 - [x] `docs/CONSENSUS.md` - the safety argument, written to be disputed, every claim mapped to a test
 - [x] `references/traceability.md` - criterion → feature → code → test → demo moment
 - [x] `docs/PLAN.md` - what is done, what is blocked, what is deliberately not done
-- [x] `scripts/live_check.py` and `viewer/` - walletless live status plus wallet-signed report and
-      owner consoles, deployed on Vercel and mirrored on GitHub Pages
+- [x] `scripts/live_check.py`, `scripts/sign_journal.py` and `viewer/` - walletless live status,
+      signed-envelope helper, and wallet-signed report and owner consoles, deployed on Vercel and
+      mirrored on GitHub Pages
 
 **Why a reviewer can trust the test table:** during review, four claims in the safety argument
 were checked by *deleting the behaviour and confirming a test failed*. Three of the four had not
@@ -88,18 +108,20 @@ Six minutes. The last two are the product; do not rush them.
 | # | Do | Say | Proves |
 | --- | --- | --- | --- |
 | 1 | Open the status board, then show the constructor args and `stats()` | "one agent, one custodian, one cut window" | Reusable primitive |
-| 2 | `deposit()` 5000 GEN, then `draw()` | "real GEN, allowance-gated" | Custody works |
-| 3 | Publish a runaway journal; open a case **from the report console** | "anyone may report - the operator cannot suppress this" | Permissionlessness |
-| 4 | Show `get_case()` - verdict, rationale, digest, window | "the model wrote a rationale nobody compared; only the enum was agreed" | Consensus design |
+| 2 | Show the settlement tests, or a funded local run - not the unfunded live deployment | "transfers are atomic; a failed child is repaired by callback or `reconcile()`" | Value safety |
+| 3 | Publish a signed journal; open a case **from the report console** | "anyone may report, but only the bound agent's signed bytes can cut" | Authentication + permissionlessness |
+| 4 | Show `get_case()` - verdict, rationale, digest, window, `authenticated` | "the model wrote a rationale nobody compared; only the enum was agreed" | Consensus design |
 | 5 | `is_cut() == true`, `allowance_remaining() == 0` | "nobody did this. validators did" | N1 |
 | 6 | **Wait out the window. Read only.** No transaction. | "…and nobody undid it. the clock did" | **N3 - the whole product** |
 
-Then, if time: open a *benign* case and show the verdict is `FALSE_REPORT` and the cut is
-untouched - a breaker that fires on everything is not a breaker.
+Then, if time: show the unsigned copy of the same journal - `INSUFFICIENT_EVIDENCE`, no cut - and
+a signed benign journal - `FALSE_REPORT`, cut untouched. A breaker that fires on everything, or
+on an anonymous document, is not a breaker.
 
-**Capture as screenshots:** the status board in `CUT ACTIVE` and the same board after expiry
-(`lifted by the clock`, no transaction). Both live in `docs/screenshots/`, embedded in the README,
-and reproduce from https://furlough-dt8b.vercel.app/ or `python3.12 scripts/live_check.py status`.
+**Capture as screenshots:** a fresh `CUT ACTIVE` board and the same board after expiry (`lifted by
+the clock`, no transaction) against `live-v2-auth-1`. The files in `docs/screenshots/` show the
+previous v1 deployment and must not be presented as v2 evidence. The v2 viewer build must be
+deployed before capturing.
 
 ---
 
@@ -109,23 +131,23 @@ A reviewer who finds an unclaimed hole discounts everything else. These are alre
 `README.md` and `CONSENSUS.md` §11; repeating them in the submission costs nothing.
 
 - **Not audited.** Testnet contribution. Do not use with real value.
-- **The journal is unauthenticated.** Anyone can publish a journal naming the bound agent's
-  address and describe a retry loop. The address is public. Agent-signed digest commitment is the
-  obvious fix and the first thing to build next.
+- **Authenticated is not truthful.** The contract proves the bound agent's key signed this exact
+  contract, chain, case, claim, URL and journal bytes. A compromised agent key can still sign
+  false telemetry. Authentication raises the bar; it is not an oracle.
 - **The hermetic gate does not prove two real models agree.** The test model is a deterministic
   stand-in keyed on the measured bands. Three live cases have finalized, which exercises the live
   path; that is not proof that independent models agree.
 - **Bands are hand-calibrated** against fixtures, not derived from observed agent traffic.
-- **`_settle` is a traced no-op** on SDK `v0.3.0-rc7`. Accounting is exact; GEN movement is
-  best-effort.
-- **The live run had no money in it.** The live case ran with `deposited == 0`, so the cut's
-  value effect - allowance `deposited → 0 → deposited` - was not demonstrated on-chain. That
-  path is covered only by the hermetic custody tests.
+- **The live run had no money in it.** The v2 deployment has `deposited == 0`, so deposit, draw,
+  refund and recovery were not demonstrated with real GEN. They are covered by the custody and
+  settlement tests and disclosed here rather than implied.
+- **A signed journal can still spend model budget.** There is no bond or rate limit on
+  `open_case`; weak evidence should end at `INSUFFICIENT_EVIDENCE`, and a compromised agent key
+  can sign a false loop.
 - **The consoles are a convenience, not part of the safety argument.** The board renders public
   reads. The report console calls `open_case`; the owner console changes future policy. Neither
-  holds a key, and neither can lift a cut. The write path is validated by one owner policy
-  transaction signed with a local testnet key, not yet by a case filed through MetaMask; the
-  browser console is newly built.
+  holds a key, and neither can lift a cut. The v2 report path has not yet been exercised through
+  a browser wallet.
 - **Single agent per contract.** Multi-agent and swarms are out of scope by decision.
 
 ---
@@ -137,11 +159,13 @@ No weights are invented here; the program publishes none.
 - **Novelty** - no on-chain circuit breaker exists for AI agents where no human performs the
   action. The self-expiry is the part that is hard to copy: `allowance_remaining()` reads a
   clock, so the recovery path contains no method at all.
-- **Complexity** - independent-fetch consensus with an anti-equivocation reduction, plus
-  custodied value accounting. Two properties that are easy to state and easy to get wrong: only
-  the enum crosses the boundary, and a journal that merely *grew* must reduce byte-identically.
-- **Impact** - Tools & Infrastructure. A deployed primitive, and the contract earns dev fees on
-  the points it generates.
+- **Complexity** - independent-fetch consensus with an anti-equivocation reduction, secp256k1
+  authentication bound to six fields, and custodied value accounting with atomic settlement and
+  recovery. Three properties that are easy to state and easy to get wrong: only the enum crosses
+  the boundary, a journal that merely *grew* must reduce byte-identically, and a failed transfer
+  may not silently change the allowance.
+- **Impact** - AI & Agents. A deployed primitive for agent custody, and the contract earns dev
+  fees on the points it generates.
 
 ---
 
@@ -149,22 +173,24 @@ No weights are invented here; the program publishes none.
 
 | # | Blocker | State |
 | --- | --- | --- |
-| 1 | Deploy | **done** - contract `0x7Ee18844C80395E23f06Cf75D2B998723E36804f`, tx `0x20711178…5cb905`, FINALIZED. No faucet needed: Studionet is zero-fee |
-| 2 | Live case under real validator LLMs | **done three times** - `CONFIRMED_MISBEHAVIOR`; `live-runaway` tx `0x2e466d7a…f760014` (FINALIZED in 53s), `cli-check-1` tx `0x7dda175b…a0887b`, and `ui-check-1` tx `0x28f69b61…259379`, each filed through the CLI |
-| 3 | Confirm the cut lifts by itself, no transaction | **done three times** - `2026-10-20T18:34:07Z` for `live-runaway`, `2026-10-20T21:54:21Z` for `cli-check-1`, `2026-10-20T23:21:01Z` for `ui-check-1`; `is_cut()` false, `seconds_remaining()` 0, no transaction in between any of them |
-| 4 | Deposit GEN so the allowance is visibly cut and restored | **skipped by decision** - the live case ran against a zero allowance and this is not claimed. The custody accounting is proven by the hermetic deposit/draw/refund conservation tests |
-| 5 | Screenshots of the cut and of the no-transaction lift | **done** - `docs/screenshots/viewer-cut-active.png` and `viewer-lifted.png`, captured from the multi-page board against `ui-check-1`, embedded in the README |
-| 6 | Commits pushed, repo public | **done** - all commits are on `origin/master`; the repository is public |
-| 7 | GitHub OAuth verification on portal.genlayer.com | human |
-| 8 | Pages for the site | **done** - Pages enabled with `build_type=workflow`; the `pages` workflow serves the mirror at https://vincentofweb3.github.io/furlough/ |
-| 9 | Vercel deploy as the primary host | **done** - https://furlough-dt8b.vercel.app/ is live; root directory `viewer/`, framework auto-detect (Next.js), auto-deploys from `master` |
-| 10 | Submission logo | **done** - `viewer/public/logo.png`, 1024x1024 RGBA PNG, 24 KB; inside the portal's 128-2048 px and 2 MB limits |
+| 1 | Deploy v2 | **done** - contract `0x84795e25Ae0BF5337829b614493D054c1c15c907`, tx `0x04d2cfa2…53e2f1`, FINALIZED. No faucet needed: Studionet is zero-fee |
+| 2 | Authenticated live case under real validator LLMs | **done** - `live-v2-auth-1` tx `0xe476c030…69f5d3`, FINALIZED, `CONFIRMED_MISBEHAVIOR`, `authenticated=True` |
+| 3 | Unsigned copy rejected | **done** - `live-v2-unsigned-1` tx `0xfcac4e30…f7f8151`, FINALIZED, `INSUFFICIENT_EVIDENCE`, `authenticated=False`, no cut |
+| 4 | Signed benign case | **done** - `live-v2-benign-1` tx `0xb6090a9f…414ca8`, FINALIZED, `FALSE_REPORT`, no cut |
+| 5 | Confirm the cut lifts by itself, no transaction | **done** - armed `2026-10-23T00:54:12Z`, expired `01:09:12Z`; a public read at `01:10:50Z` returned `cut_active=false` / `cut none` with no transaction |
+| 6 | Deposit GEN so the allowance is visibly cut and restored | **skipped by decision** - the live cases ran against a zero allowance and this is not claimed. Accounting, atomic settlement and recovery are proven by tests |
+| 7 | Fresh v2 screenshots | **pending** - `docs/screenshots/` still shows v1; capture only after the v2 viewer is deployed |
+| 8 | Commits pushed, repo public | **pending** - the v2 contract, tests, scripts, viewer and docs are uncommitted; the user commits and pushes manually |
+| 9 | Vercel/Pages serve the v2 viewer | **pending** - code is updated locally; the live sites still serve the old build until the commit triggers deployment |
+| 10 | GitHub OAuth verification on portal.genlayer.com | human |
+| 11 | Submission logo | **done** - `viewer/public/logo.png`, 1024x1024 RGBA PNG, 24 KB; inside the portal's 128-2048 px and 2 MB limits |
 
 **Before submitting:** verify OAuth, open every link in the form, and check the live board renders
-after Studionet's next reset. Item 4 stays skipped and is stated plainly rather than implied away;
-the live records above are the claim, and a link that 404s is worse than no link.
+after the v2 viewer deploy and after Studionet's next reset. Item 6 stays skipped and is stated
+plainly rather than implied away; the live records above are the claim, and a link that 404s is
+worse than no link.
 
-Asimov is not a fallback: its per-transaction gas cap is 2^24, and this source needs 33.2M gas
-there. The 5 GEN sent to the deployer on Asimov cannot deploy this contract.
+Asimov is not a fallback: its per-transaction gas cap is 2^24, and this contract's source is about
+53 KB - well over the cap. The 5 GEN sent to the deployer on Asimov cannot deploy it.
 
 Studionet resets periodically. If the deployed address disappears, re-deploy; do not debug it.

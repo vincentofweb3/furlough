@@ -13,18 +13,20 @@ Read this alongside [`SPEC.md`](SPEC.md) (what it is) and [`CONSENSUS.md`](CONSE
 
 | Stage | Scope | State |
 | --- | --- | --- |
-| 1–3 | Fetch, reduce, adjudicate, retain | done |
+| 1–3 | Authenticate, fetch, reduce, adjudicate, retain | done |
 | 4–6 | Custody, cut arming, expiry | done |
-| 7 | Hermetic gate | done - 87 tests, no network |
+| 7 | Hermetic gate | done - 106 tests, no network |
 | 7b | Defect review of Stages 1–7 | done - 8 findings, all fixed, all re-verified by mutation |
 | 8 | Traceability matrix | done - [`../references/traceability.md`](../references/traceability.md) |
 | 9 | Submission package | ready - [`SUBMISSION.md`](SUBMISSION.md); Vercel live and logo prepared, portal submission remains human |
-| live | Live deploy + smoke test | **done on Studionet** - three live cases reached `CONFIRMED_MISBEHAVIOR` |
+| live | Live deploy + smoke test | **done on Studionet** - signed cut, signed false report, unsigned rejection |
 | 10 | Readiness checklist | done - see below |
 
-Committed as `c11c693` (the contract-complete milestone was `9c84413`) and pushed to
-`github.com/vincentofweb3/furlough`. A Studionet deploy exists; see [`DEPLOY.md`](DEPLOY.md).
-Asimov is blocked by its per-transaction gas cap, not by funding.
+The contract-complete milestone was committed as `c11c693` (earlier `9c84413`) and pushed to
+`github.com/vincentofweb3/furlough`. The v2 authentication/settlement changes, their tests, the
+viewer updates and this documentation are uncommitted; the user commits and pushes manually. A
+v2 Studionet deploy exists; see [`DEPLOY.md`](DEPLOY.md). Asimov is blocked by its
+per-transaction gas cap, not by funding.
 
 ---
 
@@ -36,10 +38,12 @@ transaction at zero and a zero-balance key can deploy. The contract is live.
 | | |
 | --- | --- |
 | network | Studionet, chain 61999 |
-| contract | `0x7Ee18844C80395E23f06Cf75D2B998723E36804f` |
-| deploy tx | `0x2071117864281aa6c66906ecc90f914d69917b9590c1149653ca54e14f5cb905` - FINALIZED in 38s |
-| live case tx | `0x2e466d7a8e0d17380a7ba29ffdfb12a6ff2fec90df5ecd1c6bff2eef5f760014` - FINALIZED in 53s |
-| live verdict | `CONFIRMED_MISBEHAVIOR`, cut armed for 900s, real validator LLMs, `validator_agreed` |
+| contract | `0x84795e25Ae0BF5337829b614493D054c1c15c907` |
+| deploy tx | `0x04d2cfa2dc7c7dc66b0c6d4946b9081b5fc7dd6ce938de4b17a8e934ef53e2f1` - FINALIZED |
+| signed case | `live-v2-auth-1` tx `0xe476c03040aaf16f8c4c68939a7ed60bd2990cfcda77e10fb89efa64fc69f5d3` - `CONFIRMED_MISBEHAVIOR`, `authenticated=True` |
+| signed benign case | `live-v2-benign-1` tx `0xb6090a9fb5826496f202617da6be019db0ee210e1bbed9231b67c89474414ca8` - `FALSE_REPORT`, `authenticated=True` |
+| unsigned case | `live-v2-unsigned-1` tx `0xfcac4e30bd25c080c93c6ff90f0e7c054124821c6506055ae8949d864f7f8151` - `INSUFFICIENT_EVIDENCE`, no model |
+| live verdict | one signed cut; expired by clock with no transaction |
 
 Studionet resets periodically; treat the address as disposable and re-deploy.
 
@@ -48,9 +52,9 @@ Studionet resets periodically; treat the address as disposable and re-deploy.
 deliberately left unfixed. GenVM refuses any contract without
 `# { "Depends": "py-genlayer:1jb45aa8…" }` on line 1, and the header is now present.
 
-**Asimov has a per-transaction gas cap of 2^24 (16,777,216).** Two facts, both measured:
-the source estimates 33.2M gas there because pubdata is charged per byte, and
-`eth_sendRawTransaction` rejects anything over the cap with `gas limit too high`. The 5 GEN
+**Asimov has a per-transaction gas cap of 2^24 (16,777,216).** Two facts, both measured: the
+source is now about 53 KB, and pubdata is charged per byte. `eth_sendRawTransaction` rejects
+anything over the cap with `gas limit too high`. The 5 GEN
 sent to the deployer on Asimov cannot deploy this contract; a source under roughly 19.8 KB
 would fit. Studionet is the supported target.
 
@@ -115,18 +119,18 @@ This matters for submission: a reviewer's first action is to run the tests, and 
 polluted they get an environmental failure that looks like a broken contract. So the recovery is
 now scripted and documented - `scripts/check_env.py --fix`, in the README quick start and in
 `docs/DEPLOY.md`. It was verified by breaking the cache on purpose, confirming the script detects
-it, running the fix, and confirming the suite returns to 87.
+it, running the fix, and confirming the suite returns to 106.
 
 The `genvm-lint` dependency-header warning (W010) is now fixed, and the reason it was left
 unfixed is gone. The warning was real: the **live chain refuses a contract without the header**
 (`invalid_contract absent_runner_comment`). The header does not break the gate any more because
 the incompatible runner it used to resolve to is quarantined by `scripts/check_env.py --fix`, so
 the canonical hash - `py-genlayer:1jb45aa8…`, straight from the GenLayer docs - resolves
-correctly. The suite is still 87 passed with the header in place.
+correctly. The suite is still 106 passed with the header in place.
 
 ```
 $ python3.12 -m pytest -q
-87 passed
+106 passed
 ```
 
 ---
@@ -145,20 +149,21 @@ $ python3.12 -m pytest -q
 
 - [x] Deploy - no faucet needed; zero-fee transactions
 - [x] Record the **finalized** tx hash and contract address
-- [x] Publish a live runaway journal and open a real case; verdict `CONFIRMED_MISBEHAVIOR`
+- [x] Publish a signed live runaway journal and open a real case; verdict `CONFIRMED_MISBEHAVIOR`,
+      `authenticated=True`
 - [x] Confirm the cut armed (`is_cut() == true`, `allowance_remaining() == 0`) under real LLMs
-- [x] Deposit GEN so the allowance is non-zero - **skipped by decision.** The live case ran
-      against a zero allowance; the value loop is covered by the hermetic custody tests, not live.
-- [x] Confirm the cut lifts by itself with no transaction - `is_cut()` false and
-      `seconds_remaining()` 0 at `2026-10-20T18:34:07Z`, with no transaction in between
-- [x] A second and third live case filed through `scripts/live_check.py` (`cli-check-1`,
-      `ui-check-1`) - same verdict, and every window lifted by the clock
+- [x] Confirm an unsigned copy of the same journal is rejected as `INSUFFICIENT_EVIDENCE`
+      without reaching a model
+- [x] Confirm a signed benign journal reaches `FALSE_REPORT`
+- [x] Confirm the signed cut lifts by itself with no transaction
+- [x] Deposit GEN so the allowance is non-zero - **skipped by decision.** The live cases ran
+      against a zero allowance; the value loop is covered by the custody and settlement tests.
 - [x] Next.js + TypeScript site (`viewer/`) with a walletless live board and wallet-signed report
       and owner consoles, plus the live CLI (`scripts/live_check.py`)
-- [x] `genlayer-js 1.2.0` write path exercised against the live contract with a local
-      testnet key: re-set the window to 900s (tx `0xc34b234a…5851f8d`, not via MetaMask)
-- [x] Screenshots of the cut and the no-transaction lift - `docs/screenshots/`, captured from
-      the multi-page board against `ui-check-1`
+- [x] `genlayer-js 1.2.0` write path exercised against the **previous v1** contract with a
+      local testnet key: re-set the window to 900s (tx `0xc34b234a…5851f8d`, not via MetaMask)
+- [ ] Fresh v2 screenshots of the cut and the no-transaction lift - `docs/screenshots/` still
+      shows the v1 `ui-check-1` run; recapture after the v2 viewer deploy
 - [x] Make the repository public and enable GitHub Pages
 - [x] Deploy the site to Vercel as the primary host - https://furlough-dt8b.vercel.app/
 - [x] Submission logo - `viewer/public/logo.png`, 1024x1024 PNG, within the portal limits
@@ -170,23 +175,22 @@ path, not the browser wallet UX. Treat the console as newly built, not as battle
 
 **Deliberately not done, and why:**
 
-- Signed-digest commitment so a journal provably came from the bound agent. This is the single
-  most important missing piece and it is a *new stage*, not a patch - see `CONSENSUS.md` §11.
-  Attempting it now would risk the deploy that the submission depends on.
-- A funded live value loop. The allowance is zero on the deployment, so deposit/draw is covered
-  by hermetic tests and disclosed rather than faked.
+- A funded live value loop. The allowance is zero on the v2 deployment, so deposit/draw and
+  settlement recovery are covered by hermetic tests and disclosed rather than faked.
+- A rate limit or bond for signed junk cases. The unsigned path is already free to reject; a
+  signed but weak journal can spend model inference, and a compromised agent key can sign a
+  false loop. Key compromise is disclosed in `CONSENSUS.md` §11.
 
 ---
 
 ## Known-weak, by severity
 
-1. **The journal is unauthenticated.** Anyone can publish a journal naming the bound agent's
-   address and describing a retry loop, and it will cut that agent. The address is public. The
-   whole defence is one boolean, `agent_matches`. Disclosed in `CONSENSUS.md` §11; the fix is
-   the obvious one and is the first thing to build after this.
+1. **Authenticated is not truthful.** The contract proves the bound agent's key signed this
+   exact case, claim, URL and journal bytes. A compromised agent key can still sign false
+   telemetry. Disclosed in `CONSENSUS.md` §11.
 2. **The hermetic gate does not prove two real models agree.** The test model is a deterministic
    stand-in. Real inter-model agreement needs the live deploy - which is why the smoke test is
    not optional.
 3. **Bands are hand-calibrated** against fixtures, not derived from real agent traffic.
-4. **`_settle` is a traced no-op on this SDK version.** Accounting is correct; actual GEN
-   movement is best-effort. Disclosed in `CONSENSUS.md` §11.
+4. **The live value loop is unfunded.** Transfer and recovery paths are covered by tests, not
+   by live GEN. Disclosed in `CONSENSUS.md` §11.

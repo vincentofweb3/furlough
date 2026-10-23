@@ -237,14 +237,16 @@ export default function ReportForm() {
           inputMode="url"
           value={journalUrl}
           onChange={(event) => setJournalUrl(event.target.value)}
-          placeholder="https://paste.rs/..."
+          placeholder="https://gist.githubusercontent.com/.../raw/journal.json"
           maxLength={2000}
           spellCheck={false}
           autoComplete="off"
           disabled={busy}
         />
         <span className="hint">
-          A public journal the validators can fetch. The claim is not evidence; the journal is.
+          A public <code>furlough/journal@2</code> envelope signed by the bound agent. The claim
+          is not evidence; the signed journal is. An unsigned journal is reduced to{" "}
+          <code>INSUFFICIENT_EVIDENCE</code> and cannot cut.
         </span>
       </div>
 

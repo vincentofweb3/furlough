@@ -16,9 +16,10 @@ export default function ReportPage() {
           <span className="kicker">Report console</span>
           <h1 className="page-title">File it. The contract does the rest.</h1>
           <p className="lede">
-            A case is an allegation plus a public journal URL. Filing is permissionless and free on
-            Studionet; the wallet is only your signature. Validators fetch the evidence
-            independently, compare one enum, and the clock enforces the cut.
+            A case is an allegation plus a public URL serving a signed journal envelope. Filing is
+            permissionless and free on Studionet; the wallet is only your signature. Validators
+            fetch and authenticate the evidence independently, compare one enum, and the clock
+            enforces the cut.
           </p>
           <div className="chips">
             <span className="chip">no owner gate</span>
@@ -50,10 +51,11 @@ export default function ReportPage() {
                   <div className="step">
                     <div className="no">2</div>
                     <div>
-                      <h3>Journal fetch</h3>
+                      <h3>Authenticate and reduce</h3>
                       <p>
-                        The leader fetches the URL and reduces it to a banded digest. Every
-                        validator re-fetches independently.
+                        The leader fetches the signed envelope, verifies the bound agent&apos;s
+                        signature over this contract, chain, case, claim, URL and journal, then reduces it to a
+                        banded digest. Every validator re-fetches independently.
                       </p>
                     </div>
                   </div>
@@ -83,9 +85,10 @@ export default function ReportPage() {
               <div className="card">
                 <div className="label">Honest limits</div>
                 <p className="small">
-                  The journal is trusted infrastructure: validators fetch it, but nothing proves the
-                  agent authored it. Signed digests are the next build. Bands are hand-calibrated. The
-                  live deployment has no funded value loop.
+                  The URL must serve a <code>furlough/journal@2</code> envelope signed by the bound
+                  agent; an unsigned document cannot cut. Authentication proves the agent signed the
+                  telemetry, not that the telemetry is honest if its key is compromised. Bands are
+                  hand-calibrated, and the live deployment has no funded value loop.
                 </p>
                 <p className="small mb-0">
                   A case is not a claim on funds and cannot move the balance. The worst a false case

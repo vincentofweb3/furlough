@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "How it works - reduce, decide, enforce",
+  title: "How it works - authenticate, reduce, decide, enforce",
   description:
-    "The mechanism behind Furlough: deterministic journal reduction, enum-only validator consensus, and a cut enforced by a clock rather than by an operator.",
+    "The mechanism behind Furlough: signed journal authentication, deterministic reduction, enum-only validator consensus, and a cut enforced by a clock rather than by an operator.",
 };
 
 export default function HowPage() {
@@ -13,7 +13,7 @@ export default function HowPage() {
       <section className="hero compact">
         <div className="wrap">
           <span className="kicker">Mechanism</span>
-          <h1>Reduce. Decide. Enforce.</h1>
+          <h1>Authenticate. Reduce. Decide. Enforce.</h1>
           <p className="lede">
             Furlough splits the problem at the point where it matters: measurement and accounting are
             deterministic contract logic, while the only question sent to a model is one with three
@@ -45,8 +45,8 @@ export default function HowPage() {
                 <h3>File</h3>
                 <p>
                   Anyone calls <code>open_case</code> with a claim, a case id and the URL of the
-                  agent&apos;s journal. There is no owner gate: a breaker only a trusting operator
-                  can trigger is not a breaker. You can do this from the{" "}
+                  agent&apos;s signed journal envelope. There is no owner gate: a breaker only a
+                  trusting operator can trigger is not a breaker. You can do this from the{" "}
                   <Link href="/report">report console</Link>.
                 </p>
               </div>
@@ -54,22 +54,23 @@ export default function HowPage() {
             <div className="step">
               <div className="no">2</div>
               <div>
-                <h3>Reduce</h3>
+                <h3>Authenticate</h3>
                 <p>
-                  The leader fetches the journal and collapses it to banded fields. Timestamps, exact
-                  counts, tool names, destinations and the journal&apos;s own id are discarded. Only
-                  stable shape survives.
+                  The envelope must name this contract, chain, case, claim, URL and bound agent,
+                  and carry a secp256k1 signature over those fields plus the journal bytes. The
+                  contract verifies the signature itself. Unsigned or replayed evidence stops here.
                 </p>
               </div>
             </div>
             <div className="step">
               <div className="no">3</div>
               <div>
-                <h3>Decide</h3>
+                <h3>Reduce and decide</h3>
                 <p>
-                  Every validator re-fetches and re-reduces independently, then compares one enum. If
-                  the journal is unreachable the contract returns{" "}
-                  <code>INSUFFICIENT_EVIDENCE</code> itself and no model is consulted at all.
+                  Only after authentication is the journal collapsed to banded fields. Timestamps,
+                  exact counts, tool names, destinations and the journal&apos;s own id are
+                  discarded. Every validator re-fetches and re-reduces independently, then compares
+                  one enum.
                 </p>
               </div>
             </div>
@@ -90,11 +91,17 @@ export default function HowPage() {
 
       <section>
         <div className="wrap">
-          <h2>Stage 1 - what survives reduction</h2>
+          <h2>Stage 1 - authenticate, then reduce</h2>
           <p className="section-sub">
-            The decisive property is not &quot;we summarise the journal&quot;. It is that two fetches
-            of the same journal, with every volatile field different, must reduce to a byte-identical
-            digest. A journal that merely grew must reduce identically too.
+            Before reduction, the envelope is checked against the bound agent. The signature binds
+            the contract, chain, case id, claim, journal URL and exact journal bytes, so a document
+            signed for one filing cannot be replayed into another. Unsigned evidence never reaches
+            a model.
+          </p>
+          <p className="section-sub">
+            The decisive reduction property is not &quot;we summarise the journal&quot;. It is that
+            two fetches of the same journal, with every volatile field different, must reduce to a
+            byte-identical digest. A journal that merely grew must reduce identically too.
           </p>
           <div className="table-wrap">
             <table className="table">
@@ -142,6 +149,11 @@ export default function HowPage() {
                   <td>journal plus contract state, identical on every node</td>
                 </tr>
                 <tr>
+                  <td>authenticated</td>
+                  <td>did the bound agent sign this exact case, claim, URL and journal</td>
+                  <td>a signature check, identical on every node</td>
+                </tr>
+                <tr>
                   <td>agent_matches</td>
                   <td>does the journal claim the bound address</td>
                   <td>a boolean</td>
@@ -157,22 +169,23 @@ export default function HowPage() {
           </p>
           <pre>
             <code>{`{
-  "schema": "furlough/journal@1",
+  "schema": "furlough/journal@2",
   "journal_found": true,
+  "authenticated": true,
   "agent_matches": true,
   "step_count_band": "MANY",
   "distinct_tool_band": "ONE",
   "target_fanout_band": "ONE",
-  "repeat_ratio_band": "HIGH",
-  "error_ratio_band": "HIGH",
-  "single_target_share_band": "HIGH",
-  "spend_band": "SMALL",
-  "spend_fraction_band": "HIGH"
+  "repeat_ratio_band": "EXTREME",
+  "error_ratio_band": "EXTREME",
+  "single_target_share_band": "EXTREME",
+  "spend_band": "MEDIUM",
+  "spend_fraction_band": "UNKNOWN"
 }`}</code>
           </pre>
           <p className="small">
-            A retry loop against one failing dependency, after reduction. No timestamp, count, tool
-            name or destination survived.
+            A retry loop against one failing dependency, after authentication and reduction. No
+            timestamp, count, tool name or destination survived.
           </p>
         </div>
       </section>
@@ -272,23 +285,25 @@ export default function HowPage() {
 
           <h3 className="mt-34">From the live record</h3>
           <p className="section-sub">
-            The second live case, <code>cli-check-1</code>, end to end:
+            The signed case, <code>live-v2-auth-1</code>, end to end:
           </p>
           <div className="steps">
             <div className="step">
               <div className="no">T</div>
               <div>
-                <h3>21:39:21Z - confirmed and armed</h3>
+                <h3>00:54:12Z - signed, confirmed and armed</h3>
                 <p>
-                  Case finalized <code>CONFIRMED_MISBEHAVIOR</code> 51 seconds after filing. The
-                  allowance reads 0 GEN from this moment.
+                  Case finalized <code>CONFIRMED_MISBEHAVIOR</code> with{" "}
+                  <code>authenticated=True</code>. The allowance reads 0 GEN from this moment. The
+                  unsigned copy filed at 00:56:45Z finalized as{" "}
+                  <code>INSUFFICIENT_EVIDENCE</code> without reaching a model.
                 </p>
               </div>
             </div>
             <div className="step">
               <div className="no">15m</div>
               <div>
-                <h3>21:54:21Z - deadline passes</h3>
+                <h3>01:09:12Z - deadline passes</h3>
                 <p>
                   Nobody sends anything. <code>window_closed()</code> flips true at the expiry
                   second, inclusive, and the allowance reads the full balance again.
@@ -298,10 +313,11 @@ export default function HowPage() {
             <div className="step">
               <div className="no">16m</div>
               <div>
-                <h3>21:55:08Z - verified operating</h3>
+                <h3>01:10:50Z - verified operating</h3>
                 <p>
-                  A public read shows <code>OPERATING</code> with the cut recorded as lifted by the
-                  clock. Screenshot on the <Link href="/live">live board</Link>.
+                  A public read shows <code>cut_active=false</code> / <code>OPERATING</code>, with the
+                  cut recorded as lifted by the clock. Screenshot on the{" "}
+                  <Link href="/live">live board</Link>.
                 </p>
               </div>
             </div>
@@ -320,7 +336,9 @@ export default function HowPage() {
                 <code>deposited</code> and <code>drawn</code> are written by exactly two methods,{" "}
                 <code>deposit</code> and <code>draw</code>. No adjudication path touches either
                 counter. <code>refund</code> is blocked while a cut is live, otherwise the operator
-                could withdraw the balance and fund a fresh wallet.
+                could withdraw the balance and fund a fresh wallet. A transfer is emitted inside the
+                calling turn; a synchronous failure reverts the counter, and a later child failure
+                returns through the refund callback or <code>reconcile()</code>.
               </p>
             </div>
             <div className="card">
@@ -350,10 +368,19 @@ export default function HowPage() {
               <p className="small">A testnet contribution. Do not use it with real value.</p>
             </div>
             <div className="card">
-              <h3>The journal is trusted infrastructure</h3>
+              <h3>Authenticated is not truthful</h3>
               <p className="small">
-                Validators fetch it independently, but nothing proves the agent wrote it rather than
-                someone posing as the agent. Signed digests are the next build.
+                The contract proves the envelope came from the bound agent&apos;s key, not that the
+                telemetry inside it is honest. A compromised agent key can still sign a false
+                journal; a missing journal host fails open as{" "}
+                <code>INSUFFICIENT_EVIDENCE</code>.
+              </p>
+            </div>
+            <div className="card">
+              <h3>The live value loop is unfunded</h3>
+              <p className="small">
+                The v2 deployment has <code>deposited = 0</code>. Deposit, draw, atomic settlement
+                and recovery are covered by tests, not by real GEN on chain.
               </p>
             </div>
             <div className="card">
