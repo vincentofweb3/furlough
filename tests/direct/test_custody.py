@@ -8,6 +8,7 @@ adjudication. A breaker that can destroy funds is not a breaker, it is a confisc
 import pytest
 
 from conftest import AGENT, DEPOSIT, REPORTER, draw, open_case  # noqa: F401
+from fixtures import OBSERVER
 
 
 # --------------------------------------------------------------------- deposit
@@ -174,6 +175,16 @@ def test_case_record_carries_no_duplicate_verdict_field(funded, direct_vm):
     """
     open_case(funded, direct_vm, "runaway")
     assert not hasattr(funded.get_case("runaway"), "leader_verdict")
+
+
+def test_observer_is_fixed_at_deploy_and_has_no_setter(funded):
+    """No owner transaction can rotate the witness while a case is being adjudicated.
+
+    A mutable observer would let the operator invalidate a reporter's already-published
+    envelope by changing the verifier. Rotation is a new deployment, not a live write.
+    """
+    assert funded.stats()["observer"] == OBSERVER
+    assert not hasattr(funded, "set_observer")
 
 
 def test_contract_exposes_no_owner_controlled_evidence_source(funded):

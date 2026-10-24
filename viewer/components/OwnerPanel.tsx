@@ -279,7 +279,7 @@ export default function OwnerPanel() {
               name="reap"
               value={reapValue}
               onChange={(event) => setReapValue(event.target.value)}
-              placeholder="live-v2-auth-1"
+              placeholder="live-v3-auth-1"
               spellCheck={false}
               autoComplete="off"
               disabled={Boolean(busy)}

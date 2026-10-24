@@ -1,7 +1,7 @@
 import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 
-export const CONTRACT = "0x84795e25Ae0BF5337829b614493D054c1c15c907";
+export const CONTRACT = "0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0";
 export const EXPLORER = "https://explorer-studio.genlayer.com";
 export const REFRESH_MS = 15000;
 export const STUDIONET_CHAIN_ID = 61999;
@@ -9,6 +9,7 @@ export const STUDIONET_CHAIN_HEX = "0xf22f";
 
 export type Stats = {
   agent: string;
+  observer: string;
   owner: string;
   deposited: number;
   drawn: number;

@@ -115,13 +115,16 @@ distinction survive reduction - a 60-vs-61 count difference would not.
 ## 4a. Authenticated evidence
 
 The reporter chooses the URL, so a document alone is not evidence about the bound agent. Before
-any reduction or model call, the contract checks a `furlough/journal@2` envelope:
+any reduction or model call, the contract checks a `furlough/journal@3` envelope:
 
 - `schema` is exactly the supported version;
-- `case_id` and `agent` match the filing and the bound address;
-- `pubkey` hashes to the bound agent;
+- `case_id` matches the filing, and `observer` matches the immutable bound observer;
+- `pubkey` hashes to the bound observer, never the agent's spending key;
+- `agent` names the bound subject agent; a genuine signature about another agent fails
+  `agent_matches`;
 - `signature` is a valid low-s secp256k1 signature over a canonical message that binds the
-  contract address, chain id, case id, claim, agent, journal URL and the exact journal bytes.
+  contract address, chain id, case id, claim, subject agent, observer, journal URL and the exact
+  journal bytes.
 
 The message hashes every variable-length field, so a newline inside a case id or claim cannot
 move a field boundary. Verification runs inside the nondet block and is deterministic, so every
@@ -135,14 +138,18 @@ validator reaches the same answer. Only after authentication does the journal re
 - `test_a_signature_is_bound_to_the_case_id`, `test_a_signature_is_bound_to_the_claim`,
   `test_a_signature_is_bound_to_the_journal_url` - an envelope signed for another filing cannot
   be replayed into this one.
-- `test_a_genuine_agent_signature_is_recorded`, `test_any_reporter_may_still_file_with_genuine_evidence` -
+- `test_a_genuine_observer_signature_is_recorded`, `test_any_reporter_may_still_file_with_genuine_evidence` -
   the positive controls: authentication does not gate who may report.
-- `test_a_foreign_journal_signed_by_the_agent_is_not_evidence_about_this_agent` - a genuine
-  signature proves provenance, not relevance; `agent_matches` still has to hold.
+- `test_agent_spending_key_cannot_self_attest`, `test_observer_envelope_field_must_match` - the
+  agent cannot sign its own evidence, and the envelope observer must equal the bound observer.
+- `test_a_foreign_journal_signed_by_the_observer_is_not_evidence_about_this_agent` - a genuine
+  observer signature proves provenance, not relevance; `agent_matches` still has to hold.
 
-Authentication proves the bound agent signed the telemetry. It does not prove the telemetry is
-true: a compromised agent key can sign a false journal. That is a key-management limit, stated
-in §11, not a reason to accept unsigned documents.
+Authentication proves the bound observer signed the telemetry and named the bound agent. It does
+not prove the telemetry is true: a compromised observer key can sign a false journal, and an
+observer operated by the agent's operator is not organisationally independent. A distinct agent
+spending key cannot sign evidence; assigning the agent role to the observer is an owner choice,
+stated in §11. That is a key-management limit, not a reason to accept unsigned documents.
 
 ---
 
@@ -153,9 +160,10 @@ routine:
 
 1. **The evidence is banded**, so ordinary drift does not produce divergence (§4).
 2. **Only the enum is compared**, so prose divergence cannot (§3).
-3. **Missing or unauthenticated evidence is decided deterministically.** If the fetch fails, the
-   envelope is malformed, or the signature does not verify, the contract never consults a model
-   at all - it returns `INSUFFICIENT_EVIDENCE` itself. This removes the largest source of noise
+3. **Missing, unsigned, foreign or unauthenticated evidence is decided deterministically.** If the
+   fetch fails, the envelope is malformed, the signature does not verify, or the journal names
+   another agent, the contract never consults a model at all - it returns
+   `INSUFFICIENT_EVIDENCE` itself. This removes the largest source of noise
    and the largest injection surface from the path entirely.
    - `test_missing_journal_never_reaches_the_model` - asserts that *no model mock matched at
      all*, rather than that the verdict happened to come out right. Asserting the verdict proved
@@ -288,12 +296,13 @@ binding case.
 misbehaved, so gating this on the owner would make the product useless - a cut only a trusting
 owner can trigger is not a breaker.
 
-The cost is real but smaller than it looks: an unsigned or unreachable document is rejected
-before any model call, so a stranger cannot cut the agent. A signed document requires the bound
-agent's key. The remaining attack is a signed journal - genuine or from a compromised key -
-which can spend model inference and, if the measured pattern supports it, cut. Key compromise is
-§11. The case must still reference a journal URL, the output is constrained to three strings,
-and a cut expires on its own. A rate limit or a bond remains out of scope.
+The cost is real but smaller than it looks: an unsigned, unreachable or foreign-agent document
+is rejected before any model call, so neither a stranger nor the agent's own spending key can
+cut. A signed document requires the bound observer's key. The remaining attack is a signed
+journal - genuine or from a compromised observer key - which can spend model inference and, if
+the measured pattern supports it, cut. Key compromise and observer independence are §11. The
+case must still reference a journal URL, the output is constrained to three strings, and a cut
+expires on its own. A rate limit or a bond remains out of scope.
 
 Note the asymmetry with §7: junk cases cost model inference and nothing else. They cannot move
 value. That asymmetry is why permissionlessness is affordable here.
@@ -320,13 +329,18 @@ never lifts or one that lifts instantly, and neither is visible from reading the
 Stated plainly rather than left to be discovered:
 
 - **Not audited.** This is a testnet Builder Program contribution. Do not use it with real value.
-- **Authenticated is not truthful.** The contract proves the bound agent's key signed this exact
-  case, claim, URL and journal bytes. A compromised agent key can still sign false telemetry, and
-  a journal host that goes away yields `INSUFFICIENT_EVIDENCE`. Key custody and truthful
-  telemetry remain the operator's problem.
-- **No funded live value loop.** The v2 live deployment has `deposited == 0`, so the transfer
-  path is exercised by the settlement tests, not with live GEN. The signed-cut and unsigned-
-  rejection paths are live.
+- **Authenticated is not truthful.** The contract proves the bound observer's key signed this
+  exact case, claim, URL, subject agent and journal bytes. A compromised observer key can still
+  sign false telemetry, and an observer controlled by the agent's operator is not organisationally
+  independent. A distinct agent spending key cannot sign evidence. A journal host that goes away
+  yields `INSUFFICIENT_EVIDENCE`; missing evidence fails open. Key custody and truthful telemetry
+  remain an operational problem. **Role separation is an owner setting:** `set_agent` accepts any
+  valid address, including the observer, so an owner can collapse the two roles; while they are
+  distinct, the agent's spending key cannot sign evidence. The immutable observer prevents
+  rotating the witness mid-case, not deliberately assigning the agent role to the witness.
+- **No funded live value loop.** The v3 live deployment has `deposited == 0`, so the transfer
+  path is exercised by the settlement tests, not with live GEN. The signed-cut, unsigned-
+  rejection and foreign-agent-rejection paths are live.
 - **Bands are hand-calibrated.** The edges in `_STEP_BANDS` and friends were chosen against the
   fixtures in `tests/direct/fixtures.py`. They are plausible, not validated against real agent
   traffic. A production version would want the bands derived from observed distributions, and

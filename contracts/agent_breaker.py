@@ -4,16 +4,17 @@ Furlough -- an adjudicated circuit breaker for an autonomous AI agent.
 
 An agent holds a spend allowance custodied by this contract. Anyone may allege that a
 bounded window of the agent's behaviour was misbehavior. GenLayer validators adjudicate
-the allegation against the agent's own published journal and return one of three
-verdicts. A ``CONFIRMED_MISBEHAVIOR`` verdict cuts the agent's allowance to zero until an
+the allegation against an observer-signed journal published about the agent and return one
+of three verdicts. A ``CONFIRMED_MISBEHAVIOR`` verdict cuts the agent's allowance to zero until an
 immutable expiry, after which the allowance returns on its own. No human performs the cut
 and no human lifts it.
 
 Three stages:
 
-  Stage 1  deterministic evidence -- the leader fetches the agent's signed journal envelope,
-           verifies the signature against the bound agent, and reduces the journal to a
-           stable-field digest inside the nondet block, with no model involved
+  Stage 1  deterministic evidence -- the leader fetches the observer-signed journal envelope,
+           verifies the signature against the bound observer and that the journal names the
+           bound agent, then reduces the journal to a stable-field digest inside the nondet
+           block, with no model involved
   Stage 2  GenLayer consensus on ONE discrete enum (the verdict)
   Stage 3  retention -- verdict, rationale, digest and window are all publicly readable
 
@@ -73,12 +74,12 @@ INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 VALID_VERDICTS = (CONFIRMED_MISBEHAVIOR, FALSE_REPORT, INSUFFICIENT_EVIDENCE)
 
 # Evidence schema version. Bump when the digest shape changes so old cases stay readable.
-EVIDENCE_SCHEMA = "furlough/journal@2"
+EVIDENCE_SCHEMA = "furlough/journal@3"
 
 # A cut is time-boxed and never longer than this. A wrong verdict must be cheap.
 MAX_CUT_SECONDS = 3600
 
-# secp256k1 domain parameters. The contract verifies an agent signature itself because the
+# secp256k1 domain parameters. The contract verifies the observer signature itself because the
 # SDK exposes Keccak256 but no ecrecover primitive, and the whole point of the signature is
 # that it must be checked deterministically inside consensus.
 _SECP_P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -313,13 +314,15 @@ def evidence_message(
     case_id: str,
     claim: str,
     agent: object,
+    observer: object,
     journal_url: str,
     journal_text: str,
 ) -> str:
     """Canonical bytes-to-be-hashed for a journal envelope.
 
     Every variable-length string is hashed, so a newline inside a case id or a claim cannot
-    move the field boundary and make two different filings share one signature.
+    move the field boundary and make two different filings share one signature. ``agent`` is
+    the subject of the evidence; ``observer`` is the address whose key must have signed it.
     """
     return "\n".join(
         [
@@ -329,6 +332,7 @@ def evidence_message(
             f"case_id_keccak=0x{_keccak_hex(case_id)}",
             f"claim_keccak=0x{_keccak_hex(claim)}",
             f"agent=0x{_norm_address(agent)}",
+            f"observer=0x{_norm_address(observer)}",
             f"journal_url_keccak=0x{_keccak_hex(journal_url)}",
             f"journal_keccak=0x{_keccak_hex(journal_text)}",
         ]
@@ -342,14 +346,15 @@ def _verify_journal_envelope(
     case_id: str,
     claim: str,
     agent: str,
+    observer: str,
     journal_url: str,
 ) -> dict:
     """Parse and authenticate a journal envelope. Never raises.
 
-    Authenticated means all of: the envelope names the case and the bound agent, the
-    embedded public key derives to that agent, the signature is valid over the canonical
-    message (which binds this contract, chain, case, claim and URL), and the signed journal
-    text is a JSON object.
+    Authenticated means all of: the envelope names the case, the bound agent and the bound
+    observer; the embedded public key derives to the observer (never the agent itself); the
+    signature is valid over the canonical message (which binds this contract, chain, case,
+    claim, agent, observer and URL); and the signed journal text is a JSON object.
     """
     result = {"authenticated": False, "payload": None, "note": "UNAUTHENTICATED"}
     if not body:
@@ -372,6 +377,9 @@ def _verify_journal_envelope(
     if _norm_address(envelope.get("agent", "")) != _norm_address(agent):
         result["note"] = "AGENT_MISMATCH"
         return result
+    if _norm_address(envelope.get("observer", "")) != _norm_address(observer):
+        result["note"] = "OBSERVER_MISMATCH"
+        return result
 
     journal_text = envelope.get("journal")
     if not isinstance(journal_text, str):
@@ -380,12 +388,12 @@ def _verify_journal_envelope(
 
     pubkey = _hex_bytes(envelope.get("pubkey"))
     signature = _hex_bytes(envelope.get("signature"))
-    if _pubkey_address(pubkey) != "0x" + _norm_address(agent):
-        result["note"] = "PUBKEY_NOT_AGENT"
+    if _pubkey_address(pubkey) != "0x" + _norm_address(observer):
+        result["note"] = "PUBKEY_NOT_OBSERVER"
         return result
 
     message = evidence_message(
-        contract, chain_id, case_id, claim, agent, journal_url, journal_text
+        contract, chain_id, case_id, claim, agent, observer, journal_url, journal_text
     )
     if not _ecdsa_verify(pubkey, Keccak256(message.encode("utf-8")).digest(), signature):
         result["note"] = "BAD_SIGNATURE"
@@ -675,6 +683,7 @@ def digest_from_response(
         str(auth_context.get("case_id", "")),
         str(auth_context.get("claim", "")),
         str(auth_context.get("agent", "")),
+        str(auth_context.get("observer", "")),
         str(auth_context.get("journal_url", "")),
     )
     if not auth["authenticated"]:
@@ -736,7 +745,7 @@ def build_prompt(claim: str, digest: dict) -> str:
     observed = "\n".join(
         [
             f"- journal_retrieved: {digest.get('journal_found')}",
-            f"- journal_authenticated_by_the_bound_agent: {digest.get('authenticated')}",
+            f"- journal_authenticated_by_the_bound_observer: {digest.get('authenticated')}",
             f"- journal_belongs_to_the_bound_agent: {digest.get('agent_matches')}",
             f"- step_count_band: {digest.get('step_count_band')}",
             f"- distinct_tools_used_band: {digest.get('distinct_tool_band')}",
@@ -763,7 +772,7 @@ def build_prompt(claim: str, digest: dict) -> str:
         "distinguish misbehavior from ordinary work.\n"
         "\n"
         "If `journal_retrieved` is False you MUST choose INSUFFICIENT_EVIDENCE.\n"
-        "If `journal_authenticated_by_the_bound_agent` is False you MUST choose "
+        "If `journal_authenticated_by_the_bound_observer` is False you MUST choose "
         "INSUFFICIENT_EVIDENCE.\n"
         "If `journal_belongs_to_the_bound_agent` is False you MUST choose INSUFFICIENT_EVIDENCE.\n"
         "Be conservative: an unjustified suspension harms a working agent, so when the "
@@ -821,6 +830,10 @@ class _ExternalAccount:
 class AgentBreaker(gl.Contract):
     owner: str
     agent: str
+    # The witness key that signs telemetry about `agent`. It is deliberately separate from the
+    # spending key and fixed at deploy: there is no owner setter that could rotate the witness
+    # mid-case and invalidate a report that is already being adjudicated.
+    observer: str
     default_cut_seconds: u256
 
     # Custodied GEN. ``deposited`` only ever rises, ``drawn`` only ever rises, and the gap
@@ -846,12 +859,18 @@ class AgentBreaker(gl.Contract):
         self,
         owner: str,
         agent: str,
+        observer: str,
         default_cut_seconds: int = 900,
     ) -> None:
         self.owner = owner
         if len(_hex_bytes(agent)) != 20:
             raise gl.vm.UserError("agent must be a 20-byte address")
         self.agent = agent
+        if len(_hex_bytes(observer)) != 20:
+            raise gl.vm.UserError("observer must be a 20-byte address")
+        if _norm_address(observer) == _norm_address(agent):
+            raise gl.vm.UserError("observer must be a different address from the agent")
+        self.observer = observer
         cut_seconds = int(default_cut_seconds)
         # Fail loudly rather than silently substituting a default. A deploy that asked for a
         # 2-hour cut and quietly got 15 minutes is a misconfiguration nobody would find.
@@ -1101,18 +1120,22 @@ class AgentBreaker(gl.Contract):
         claim = str(parsed["claim"])[:2000]
         journal_url = str(parsed["journal_url"]).strip()[:2000]
         agent = str(self.agent)
+        observer = str(self.observer)
 
-        self._adjudicate(case_id, claim, journal_url, agent)
+        self._adjudicate(case_id, claim, journal_url, agent, observer)
         return case_id
 
     # ---------------------------------------------------------------- consensus
 
-    def _adjudicate(self, case_id: str, claim: str, journal_url: str, agent: str) -> None:
+    def _adjudicate(
+        self, case_id: str, claim: str, journal_url: str, agent: str, observer: str
+    ) -> None:
         # Copy everything the nondet callbacks need into locals. GenVM nondet callbacks
         # cannot safely read contract storage directly.
         claim_local = claim
         journal_url_local = journal_url
         agent_local = agent
+        observer_local = observer
         deposited_local = self._raw_allowance()
         contract_local = _as_hex(gl.message.contract_address)
         chain_id_local = int(gl.message.chain_id)
@@ -1122,6 +1145,7 @@ class AgentBreaker(gl.Contract):
             "case_id": case_id,
             "claim": claim_local,
             "agent": agent_local,
+            "observer": observer_local,
             "journal_url": journal_url_local,
         }
 
@@ -1134,14 +1158,19 @@ class AgentBreaker(gl.Contract):
                 res.status, res.body, agent_local, deposited_local, auth_local
             )
 
-            # Deterministic short-circuit. If the journal is missing, unreadable, or not
-            # signed by the bound agent, there is nothing for a model to weigh: no inference
-            # is spent, and a reporter cannot turn their own file into a custody cut.
-            if not digest.get("journal_found") or not digest.get("authenticated"):
+            # Deterministic short-circuit. If the journal is missing, unreadable, not signed
+            # by the bound observer, or names a different agent, there is nothing for a model
+            # to weigh: no inference is spent, and a reporter cannot turn their own file into
+            # a custody cut. `agent_matches` is checked here, not delegated to the model.
+            if (
+                not digest.get("journal_found")
+                or not digest.get("authenticated")
+                or not digest.get("agent_matches")
+            ):
                 return {
                     "verdict": INSUFFICIENT_EVIDENCE,
-                    "rationale": "The journal is missing or not signed by the bound agent, "
-                    "so there is nothing to adjudicate.",
+                    "rationale": "The journal is missing, not signed by the bound observer, "
+                    "or not about the bound agent, so there is nothing to adjudicate.",
                     "digest": digest,
                 }
 
@@ -1288,6 +1317,7 @@ class AgentBreaker(gl.Contract):
     def stats(self) -> dict:
         return {
             "agent": self.agent,
+            "observer": self.observer,
             "owner": self.owner,
             "deposited": int(self.deposited),
             "drawn": int(self.drawn),

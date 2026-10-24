@@ -15,17 +15,17 @@ Read this alongside [`SPEC.md`](SPEC.md) (what it is) and [`CONSENSUS.md`](CONSE
 | --- | --- | --- |
 | 1–3 | Authenticate, fetch, reduce, adjudicate, retain | done |
 | 4–6 | Custody, cut arming, expiry | done |
-| 7 | Hermetic gate | done - 106 tests, no network |
+| 7 | Hermetic gate | done - 122 tests, no network |
 | 7b | Defect review of Stages 1–7 | done - 8 findings, all fixed, all re-verified by mutation |
 | 8 | Traceability matrix | done - [`../references/traceability.md`](../references/traceability.md) |
-| 9 | Submission package | ready - [`SUBMISSION.md`](SUBMISSION.md); Vercel live and logo prepared, portal submission remains human |
-| live | Live deploy + smoke test | **done on Studionet** - signed cut, signed false report, unsigned rejection |
+| 9 | Submission package | ready locally - [`SUBMISSION.md`](SUBMISSION.md); v3 viewer build passes, Vercel/Pages refresh and portal submission remain human |
+| live | Live deploy + smoke test | **done on Studionet** - signed cut, signed false report, unsigned and foreign-agent rejection |
 | 10 | Readiness checklist | done - see below |
 
 The contract-complete milestone was committed as `c11c693` (earlier `9c84413`) and pushed to
-`github.com/vincentofweb3/furlough`. The v2 authentication/settlement changes, their tests, the
+`github.com/vincentofweb3/furlough`. The v3 authentication/settlement changes, their tests, the
 viewer updates and this documentation are uncommitted; the user commits and pushes manually. A
-v2 Studionet deploy exists; see [`DEPLOY.md`](DEPLOY.md). Asimov is blocked by its
+v3 Studionet deploy exists; see [`DEPLOY.md`](DEPLOY.md). Asimov is blocked by its
 per-transaction gas cap, not by funding.
 
 ---
@@ -38,11 +38,14 @@ transaction at zero and a zero-balance key can deploy. The contract is live.
 | | |
 | --- | --- |
 | network | Studionet, chain 61999 |
-| contract | `0x84795e25Ae0BF5337829b614493D054c1c15c907` |
-| deploy tx | `0x04d2cfa2dc7c7dc66b0c6d4946b9081b5fc7dd6ce938de4b17a8e934ef53e2f1` - FINALIZED |
-| signed case | `live-v2-auth-1` tx `0xe476c03040aaf16f8c4c68939a7ed60bd2990cfcda77e10fb89efa64fc69f5d3` - `CONFIRMED_MISBEHAVIOR`, `authenticated=True` |
-| signed benign case | `live-v2-benign-1` tx `0xb6090a9fb5826496f202617da6be019db0ee210e1bbed9231b67c89474414ca8` - `FALSE_REPORT`, `authenticated=True` |
-| unsigned case | `live-v2-unsigned-1` tx `0xfcac4e30bd25c080c93c6ff90f0e7c054124821c6506055ae8949d864f7f8151` - `INSUFFICIENT_EVIDENCE`, no model |
+| contract | `0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0` |
+| deploy tx | `0x9156b52a3794d7d133307f6aa9225aa0b4a6cae4d3cdd73b67ae8c191addad17` - FINALIZED |
+| bound agent | `0x7adE3852187F6FDAC7798c826620F49a9D529964` |
+| bound observer | `0x69780b792B74376D22232668EDCa18008195cD3A` - immutable |
+| signed case | `live-v3-auth-1` tx `0x1b1ee7baf91def4cfdd6f6cabc63f05dba32242e73ef12e59d7bade8a50916df` - `CONFIRMED_MISBEHAVIOR`, `authenticated=True`, `agent_matches=True` |
+| signed benign case | `live-v3-benign-1` tx `0xc591d813602c7d9c524f2d6854e05f258418ab43b34c15041fb8581250ede04a` - `FALSE_REPORT`, `authenticated=True` |
+| unsigned case | `live-v3-unsigned-1` tx `0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f` - `INSUFFICIENT_EVIDENCE`, no model |
+| foreign-agent case | `live-v3-foreign-1` tx `0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7` - `INSUFFICIENT_EVIDENCE`, `authenticated=True`, `agent_matches=False`, no model |
 | live verdict | one signed cut; expired by clock with no transaction |
 
 Studionet resets periodically; treat the address as disposable and re-deploy.
@@ -119,18 +122,18 @@ This matters for submission: a reviewer's first action is to run the tests, and 
 polluted they get an environmental failure that looks like a broken contract. So the recovery is
 now scripted and documented - `scripts/check_env.py --fix`, in the README quick start and in
 `docs/DEPLOY.md`. It was verified by breaking the cache on purpose, confirming the script detects
-it, running the fix, and confirming the suite returns to 106.
+it, running the fix, and confirming the suite returns to 122.
 
 The `genvm-lint` dependency-header warning (W010) is now fixed, and the reason it was left
 unfixed is gone. The warning was real: the **live chain refuses a contract without the header**
 (`invalid_contract absent_runner_comment`). The header does not break the gate any more because
 the incompatible runner it used to resolve to is quarantined by `scripts/check_env.py --fix`, so
 the canonical hash - `py-genlayer:1jb45aa8…`, straight from the GenLayer docs - resolves
-correctly. The suite is still 106 passed with the header in place.
+correctly. The suite is still 122 passed with the header in place.
 
 ```
 $ python3.12 -m pytest -q
-106 passed
+122 passed
 ```
 
 ---
@@ -149,10 +152,13 @@ $ python3.12 -m pytest -q
 
 - [x] Deploy - no faucet needed; zero-fee transactions
 - [x] Record the **finalized** tx hash and contract address
-- [x] Publish a signed live runaway journal and open a real case; verdict `CONFIRMED_MISBEHAVIOR`,
-      `authenticated=True`
+- [x] Publish an observer-signed live runaway journal naming the bound agent and open a real case;
+      verdict `CONFIRMED_MISBEHAVIOR`, `authenticated=True`, `agent_matches=True`
 - [x] Confirm the cut armed (`is_cut() == true`, `allowance_remaining() == 0`) under real LLMs
 - [x] Confirm an unsigned copy of the same journal is rejected as `INSUFFICIENT_EVIDENCE`
+      without reaching a model
+- [x] Confirm the agent's spending key cannot self-attest
+- [x] Confirm an observer-signed journal naming another agent is rejected by `agent_matches`
       without reaching a model
 - [x] Confirm a signed benign journal reaches `FALSE_REPORT`
 - [x] Confirm the signed cut lifts by itself with no transaction
@@ -162,32 +168,38 @@ $ python3.12 -m pytest -q
       and owner consoles, plus the live CLI (`scripts/live_check.py`)
 - [x] `genlayer-js 1.2.0` write path exercised against the **previous v1** contract with a
       local testnet key: re-set the window to 900s (tx `0xc34b234a…5851f8d`, not via MetaMask)
-- [ ] Fresh v2 screenshots of the cut and the no-transaction lift - `docs/screenshots/` still
-      shows the v1 `ui-check-1` run; recapture after the v2 viewer deploy
+- [x] Fresh v3 `OPERATING` and verify screenshots from the local build, reading the live v3
+      contract - `docs/screenshots/viewer-v3-live.png`, `viewer-v3-verify.png`
+- [ ] Active `CUT ACTIVE` and post-expiry screenshots against the deployed v3 viewer - the
+      `live-v3-auth-1` window expired before capture; v1 files are archived, not evidence
 - [x] Make the repository public and enable GitHub Pages
-- [x] Deploy the site to Vercel as the primary host - https://furlough-dt8b.vercel.app/
+- [ ] Refresh Vercel and GitHub Pages to the v3 build - Vercel still serves v2; local `npm run build` passes
 - [x] Submission logo - `viewer/public/logo.png`, 1024x1024 PNG, within the portal limits
 - [ ] Verify GitHub OAuth on portal.genlayer.com and submit the project application
 
-The report console has not yet filed a live case through MetaMask: the three live cases were
+The report console has not yet filed a live case through MetaMask: the four live cases were
 filed through the CLI, and the SDK transaction above validates the same encoding and finality
 path, not the browser wallet UX. Treat the console as newly built, not as battle-tested.
 
 **Deliberately not done, and why:**
 
-- A funded live value loop. The allowance is zero on the v2 deployment, so deposit/draw and
+- A funded live value loop. The allowance is zero on the v3 deployment, so deposit/draw and
   settlement recovery are covered by hermetic tests and disclosed rather than faked.
 - A rate limit or bond for signed junk cases. The unsigned path is already free to reject; a
-  signed but weak journal can spend model inference, and a compromised agent key can sign a
-  false loop. Key compromise is disclosed in `CONSENSUS.md` §11.
+  signed but weak journal can spend model inference, and a compromised observer key (or an
+  observer controlled by the agent's operator) can sign a false loop. Key compromise and
+  observer independence are disclosed in `CONSENSUS.md` §11.
 
 ---
 
 ## Known-weak, by severity
 
-1. **Authenticated is not truthful.** The contract proves the bound agent's key signed this
-   exact case, claim, URL and journal bytes. A compromised agent key can still sign false
-   telemetry. Disclosed in `CONSENSUS.md` §11.
+1. **Authenticated is not truthful.** The contract proves the bound observer's key signed this
+   exact case, claim, URL, subject agent and journal bytes. A compromised observer key can still
+   sign false telemetry, and an observer controlled by the agent's operator is not
+   organisationally independent. A distinct agent spending key cannot sign evidence; owner role
+   reassignment is a disclosed limit. Disclosed in
+   `CONSENSUS.md` §11.
 2. **The hermetic gate does not prove two real models agree.** The test model is a deterministic
    stand-in. Real inter-model agreement needs the live deploy - which is why the smoke test is
    not optional.

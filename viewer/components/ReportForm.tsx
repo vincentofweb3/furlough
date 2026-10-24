@@ -244,7 +244,7 @@ export default function ReportForm() {
           disabled={busy}
         />
         <span className="hint">
-          A public <code>furlough/journal@2</code> envelope signed by the bound agent. The claim
+          A public <code>furlough/journal@3</code> envelope signed by the bound observer. The claim
           is not evidence; the signed journal is. An unsigned journal is reduced to{" "}
           <code>INSUFFICIENT_EVIDENCE</code> and cannot cut.
         </span>

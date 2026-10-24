@@ -42,7 +42,8 @@ export default function CaseCard({ entry, now }: { entry: CaseRecord; now: numbe
         <div className="row">{entry.rationale}</div>
         <div className="row">
           journal fetched {entry.digest?.journal_found ? "true" : "false"} - signed by the bound
-          agent {entry.digest?.authenticated ? "true" : "false"}
+          observer {entry.digest?.authenticated ? "true" : "false"} - names the bound agent{" "}
+          {entry.digest?.agent_matches ? "true" : "false"}
           {entry.digest?.note ? ` (${entry.digest.note})` : ""}
         </div>
         <div className="sig">{entry.digest?.signature ?? "no digest recorded"}</div>

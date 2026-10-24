@@ -4,13 +4,13 @@
     python3.12 scripts/live_check.py status
     python3.12 scripts/live_check.py open-case --journal-url URL --claim "..."
 
-`status` is read-only and needs no wallet: it prints the bound agent, the custody figures,
+`status` is read-only and needs no wallet: it prints the bound agent, the observer, the custody figures,
 the cut window and every case on record, newest first.
 
 `open-case` files an allegation. It is permissionless by design, so any testnet key works,
 and Studionet charges no gas, so the script prices the transaction at zero. It needs
-``GENLAYER_PRIVATE_KEY`` and a URL serving a ``furlough/journal@2`` envelope signed by the
-bound agent; build one with ``scripts/sign_journal.py``. It waits for FINALIZED before
+``GENLAYER_PRIVATE_KEY`` and a URL serving a ``furlough/journal@3`` envelope signed by the
+bound observer; build one with ``scripts/sign_journal.py``. It waits for FINALIZED before
 printing the verdict.
 
 The address defaults to the recorded Studionet deployment; override it with ``--address``
@@ -28,7 +28,7 @@ from genlayer_py import create_account, create_client
 from genlayer_py.chains import studionet
 from genlayer_py.types import TransactionStatus
 
-DEFAULT_CONTRACT = "0x84795e25Ae0BF5337829b614493D054c1c15c907"
+DEFAULT_CONTRACT = "0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0"
 EXPLORER = "https://explorer-studio.genlayer.com"
 
 STUDIONET_GAS = 20_000_000
@@ -93,6 +93,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"contract  {address}")
     print(f"explorer  {EXPLORER}")
     print(f"agent     {field(state, 'agent')}")
+    print(f"observer  {field(state, 'observer')}")
     print(f"owner     {field(state, 'owner')}")
     print(
         f"custody   deposited={field(state, 'deposited')} drawn={field(state, 'drawn')} "
@@ -193,7 +194,8 @@ def cmd_open_case(args: argparse.Namespace) -> int:
     if field(case, "cut", False):
         print(f"cut       armed until {field(case, 'expires_at')}")
     print(f"evidence  authenticated={field(digest, 'authenticated')} "
-          f"journal_found={field(digest, 'journal_found')}")
+          f"journal_found={field(digest, 'journal_found')} "
+          f"agent_matches={field(digest, 'agent_matches')}")
     print(f"digest    {field(digest, 'signature')}")
     print(f"rationale {field(case, 'rationale')}")
     return 0

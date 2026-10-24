@@ -53,8 +53,8 @@ export default function ReportPage() {
                     <div>
                       <h3>Authenticate and reduce</h3>
                       <p>
-                        The leader fetches the signed envelope, verifies the bound agent&apos;s
-                        signature over this contract, chain, case, claim, URL and journal, then reduces it to a
+                        The leader fetches the signed envelope, verifies the bound observer&apos;s
+                        signature and that the journal names the bound agent, then reduces it to a
                         banded digest. Every validator re-fetches independently.
                       </p>
                     </div>
@@ -85,9 +85,10 @@ export default function ReportPage() {
               <div className="card">
                 <div className="label">Honest limits</div>
                 <p className="small">
-                  The URL must serve a <code>furlough/journal@2</code> envelope signed by the bound
-                  agent; an unsigned document cannot cut. Authentication proves the agent signed the
-                  telemetry, not that the telemetry is honest if its key is compromised. Bands are
+                  The URL must serve a <code>furlough/journal@3</code> envelope signed by the bound
+                  observer and naming the bound agent; an unsigned document cannot cut.
+                  Authentication proves the observer signed the telemetry, not that it is honest if
+                  that key is compromised or controlled by the same operator. Bands are
                   hand-calibrated, and the live deployment has no funded value loop.
                 </p>
                 <p className="small mb-0">

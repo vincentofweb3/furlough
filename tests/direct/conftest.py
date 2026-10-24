@@ -13,7 +13,7 @@ import pytest
 from gltest.direct import pytest_plugin  # noqa: F401  (registers direct_* fixtures)
 
 sys.path.insert(0, str(Path(__file__).parent))
-from fixtures import AGENT, FIXTURES, case_payload, signed_envelope  # noqa: E402
+from fixtures import AGENT, FIXTURES, OBSERVER, case_payload, signed_envelope  # noqa: E402
 
 CONTRACT = "contracts/agent_breaker.py"
 
@@ -97,7 +97,7 @@ def breaker(direct_vm, direct_deploy):
 
     direct_vm.sender = OWNER
     direct_vm.value = 0
-    contract = direct_deploy(CONTRACT, owner=OWNER, agent=AGENT, sdk_version=SDK_VERSION)
+    contract = direct_deploy(CONTRACT, owner=OWNER, agent=AGENT, observer=OBSERVER, sdk_version=SDK_VERSION)
     return contract
 
 
@@ -186,5 +186,5 @@ def contract_module(direct_deploy):
     The stage-1 reduction helpers are pure and deterministic, so they can be exercised
     directly rather than only through a full adjudicate() round trip.
     """
-    direct_deploy(CONTRACT, owner=OWNER, agent=AGENT, sdk_version=SDK_VERSION)
+    direct_deploy(CONTRACT, owner=OWNER, agent=AGENT, observer=OBSERVER, sdk_version=SDK_VERSION)
     return sys.modules["_contract_agent_breaker"]

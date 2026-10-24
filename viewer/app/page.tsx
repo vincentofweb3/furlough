@@ -93,9 +93,10 @@ export default function HomePage() {
               <div>
                 <h3>Authenticate the evidence</h3>
                 <p>
-                  The journal must carry a <code>furlough/journal@2</code> envelope signed by the
-                  bound agent over this contract, chain, case, claim, URL and journal bytes.
-                  Unsigned, tampered or replayed documents stop here, before any model call.
+                  The journal must carry a <code>furlough/journal@3</code> envelope signed by the
+                  bound observer, naming this contract, chain, case, claim, URL, subject agent and
+                  observer. Unsigned, tampered, foreign or replayed documents stop here, before
+                  any model call.
                 </p>
               </div>
             </div>
@@ -181,7 +182,8 @@ export default function HomePage() {
               <div className="label">Permissionless</div>
               <h3>The operator cannot suppress a case</h3>
               <p className="small">
-                Anyone may file one, but only a journal signed by the bound agent can cut. The
+                Anyone may file one, but only a journal signed by the bound observer about the
+                bound agent can cut. The
                 operator cannot suppress a case, and an anonymous document cannot open one.
               </p>
             </div>
@@ -222,7 +224,7 @@ export default function HomePage() {
               <div className="num-note">signed cut lifted by the clock, zero transactions</div>
             </div>
             <div className="card">
-              <span className="num">106</span>
+              <span className="num">122</span>
               <div className="num-note">hermetic tests, no network, no API key</div>
             </div>
             <div className="card">

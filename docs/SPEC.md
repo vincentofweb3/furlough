@@ -68,10 +68,11 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 2. Agent draws against its allowance via `draw(amount)`; draws succeed.
 3. A bystander (or the operator, or a watchdog) calls `open_case(payload_json)`, where the payload
    is a JSON object carrying `case_id`, `claim` and `journal_url`.
-4. The leader fetches the agent's signed journal envelope from `journal_url`, verifies that the
-   bound agent signed this exact contract, chain, case, claim, URL and journal bytes, then
-   reduces the journal to stable fields and asks the model for one of three verdicts. Validators
-   independently re-fetch, re-authenticate, re-reduce and re-derive, comparing **only the enum**.
+4. The leader fetches the observer-signed journal envelope from `journal_url`, verifies that the
+   bound observer signed this exact contract, chain, case, claim, URL, subject agent, observer
+   and journal bytes, and that the envelope names the bound agent, then reduces the journal to
+   stable fields and asks the model for one of three verdicts. Validators independently
+   re-fetch, re-authenticate, re-reduce and re-derive, comparing **only the enum**.
 5. `CONFIRMED_MISBEHAVIOR` finalises → `allowance_remaining()` returns `0` until `expires_at`.
 6. After `expires_at`, `allowance_remaining()` returns the full prior value. No transaction
    from any human restores it.
@@ -89,9 +90,10 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 **In scope:**
 
 - One Intelligent Contract, `AgentBreaker`, in `contracts/agent_breaker.py`.
-- Stage 1: fetch an agent-signed `furlough/journal@2` envelope over HTTP, verify the bound
-  agent's secp256k1 signature over the contract, chain, case, claim, URL and journal bytes, then
-  reduce the journal to a **stable-field digest** inside the nondet block, with no model involved.
+- Stage 1: fetch an observer-signed `furlough/journal@3` envelope over HTTP, verify the bound
+  observer's secp256k1 signature over the contract, chain, case, claim, URL, subject agent,
+  observer and journal bytes, verify the envelope names the bound agent, then reduce the journal
+  to a **stable-field digest** inside the nondet block, with no model involved.
 - Stage 2: `run_nondet_unsafe` over a **three-value enum only**.
 - Stage 3: retain verdict, rationale, digest, window and provenance; all publicly readable.
 - Custodied GEN: `deposit`, `set_agent`, `draw`, `refund`, `allowance_remaining`, plus `reconcile`
@@ -112,7 +114,8 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
 - Cross-chain settlement, VRF, oracles, price feeds.
 - A backend, hosted keys, or server-side accounts. The frontend is static and the wallet signs.
 - Access-control lists or rate limiting on public contract methods. Evidence authentication is
-  in scope; the reporter is not authenticated, but the journal must be signed by the bound agent.
+  in scope; the reporter is not authenticated, but the journal must be signed by the separate
+  bound observer and name the bound agent. The agent's spending key cannot self-attest.
 - Multiple agents per contract.
 
 **Deferred unless time allows**, in value-per-hour order:
@@ -136,7 +139,8 @@ Status: Stage 5 exit. Timebox: one week. Target: GenLayer incentivized Builder P
   nondet block. One model inference. Nothing else. No API key, no paid service.
 - **Reporter auth**: none. Cases are permissionless by design - the operator must not be able
   to suppress a case against their own agent. **Evidence auth**: the journal envelope must be
-  signed by the bound agent and bound to the exact contract, chain, case, claim, URL and bytes.
+  signed by the bound observer and bound to the exact contract, chain, case, claim, URL, subject
+  agent and observer, plus the journal bytes. A journal naming another agent fails `agent_matches`.
 - **Deployment target**: GenLayer Studionet via `genlayer-js`.
 
 ```
@@ -203,9 +207,10 @@ anything consensus-bound sees the data. Step 7 spends model inference and can be
   already-armed window. This is the product.
 - **Permissionless reporting, authenticated evidence**: `open_case` has no access control, so
   the operator cannot suppress a case against their own agent. The journal, however, must carry
-  a signature bound to the agent, case, claim, URL, contract and chain; unsigned documents are
-  rejected before any model call. The remaining cost is a signed journal that can spend model
-  inference and, if the measurements support it, cut; a compromised key can sign a false loop.
+  a signature bound to the observer, subject agent, case, claim, URL, contract and chain; unsigned
+  or foreign-agent documents are rejected before any model call. The remaining cost is a signed
+  journal that can spend model inference and, if the measurements support it, cut; a compromised
+  observer key (or an operator-controlled observer) can sign a false loop.
 - **Prompt injection**: the claim and every journal field are attacker-controlled. They are
   labelled as data inside delimiters, and the output space is a three-value enum that the
   contract validates against `VALID_VERDICTS` before use. An injection can at worst cause
@@ -238,7 +243,7 @@ anything consensus-bound sees the data. Step 7 spends model inference and can be
 Checked against the suite as it stands. `[x]` means a named test enforces it and would fail if the
 behaviour regressed; it does not mean a human eyeballed it once.
 
-- [x] `pytest` passes with no network access. *(106 tests)*
+- [x] `pytest` passes with no network access. *(122 tests)*
 - [x] The three verdicts are reachable and the suite asserts each one from recorded evidence.
 - [x] A confirmed verdict drives `allowance_remaining()` to `0` **before** `expires_at`.
 - [x] `allowance_remaining()` returns to its pre-case value **after** `expires_at`, with no
@@ -248,8 +253,9 @@ behaviour regressed; it does not mean a human eyeballed it once.
 - [x] An injected claim against benign evidence yields `FALSE_REPORT`.
 - [x] An injected claim cannot escape its delimiter and be read as an instruction.
 - [x] Out-of-enum model output is coerced to `INSUFFICIENT_EVIDENCE`, not obeyed.
-- [x] An unsigned, wrong-signer, tampered or replayed journal cannot cut; the case, claim and
-      URL bindings each have a test, and the contract/chain are in the canonical signed message.
+- [x] An unsigned, wrong-signer, tampered, foreign or replayed journal cannot cut; the case,
+      claim, URL, contract, chain and observer bindings each have a test, and `agent_matches`
+      rejects a genuine signature about a different agent.
 - [x] A synchronous transfer failure leaves accounting untouched, and a later failure is
       credited through the callback or `reconcile()`.
 - [x] A ledger test proves contract value is conserved across every path.
@@ -258,14 +264,15 @@ behaviour regressed; it does not mean a human eyeballed it once.
 - [ ] `genvm-lint check` passes. **Lint rules run clean; its SDK-load validation cannot complete
       on this machine** - the `runners/py-genlayer/*.tar` bundle entries have been pruned from
       `~/.cache`. The same failure occurs on known-good reference contracts, so it is
-      environmental. The 106-test suite runs the contract against a real GenVM bundle and is the
+      environmental. The 122-test suite runs the contract against a real GenVM bundle and is the
       stronger check.
 - [x] Deployed to Studionet and cases finalised live. No funded key was needed - Studionet is
-      zero-fee. Contract `0x84795e25Ae0BF5337829b614493D054c1c15c907`; signed case
-      `0xe476c030…69f5d3` reached `CONFIRMED_MISBEHAVIOR`, signed benign case `0xb6090a9f…414ca8`
-      reached `FALSE_REPORT`, and unsigned case `0xfcac4e30…f7f8151` reached
-      `INSUFFICIENT_EVIDENCE`. The funded value loop was not exercised live; see
-      [`SUBMISSION.md`](SUBMISSION.md) §6.
+      zero-fee. Contract `0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0`; signed case
+      `0x1b1ee7ba…0916df` reached `CONFIRMED_MISBEHAVIOR`, signed benign case `0xc591d813…0ede04a`
+      reached `FALSE_REPORT`, unsigned case `0xd9f6f7c6…b8d27f` reached
+      `INSUFFICIENT_EVIDENCE`, and foreign-agent case `0xdf4b907b…b4c4e7` reached
+      `INSUFFICIENT_EVIDENCE` with `agent_matches=False`. The funded value loop was not exercised
+      live; see [`SUBMISSION.md`](SUBMISSION.md) §6.
 - [ ] README setup steps verified on a clean environment.
 
 Two criteria above are weaker than they look and are called out rather than hidden:

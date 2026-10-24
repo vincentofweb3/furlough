@@ -45,6 +45,13 @@ AGENT_ACCOUNT = Account.from_key(AGENT_KEY)
 AGENT = AGENT_ACCOUNT.address
 AGENT_PUBKEY = "0x" + AGENT_ACCOUNT._key_obj.public_key.to_bytes().hex()
 
+# Telemetry is signed by a separate observer key, never by the spending key. The contract
+# binds both addresses into the canonical message and rejects a deploy where they are equal.
+OBSERVER_KEY = "0x" + "33" * 32
+OBSERVER_ACCOUNT = Account.from_key(OBSERVER_KEY)
+OBSERVER = OBSERVER_ACCOUNT.address
+OBSERVER_PUBKEY = "0x" + OBSERVER_ACCOUNT._key_obj.public_key.to_bytes().hex()
+
 FOREIGN_AGENT = "0x" + "dd" * 20
 FOREIGN_KEY = "0x" + "22" * 32
 
@@ -66,6 +73,7 @@ def evidence_message(
     case_id: str,
     claim: str,
     agent: object,
+    observer: object,
     journal_url: str,
     journal_text: str,
 ) -> str:
@@ -76,12 +84,13 @@ def evidence_message(
 
     return "\n".join(
         [
-            "furlough/journal@2",
+            "furlough/journal@3",
             f"contract=0x{_norm_address(contract)}",
             f"chain_id={int(chain_id)}",
             f"case_id_keccak={hashed(case_id)}",
             f"claim_keccak={hashed(claim)}",
             f"agent=0x{_norm_address(agent)}",
+            f"observer=0x{_norm_address(observer)}",
             f"journal_url_keccak={hashed(journal_url)}",
             f"journal_keccak={hashed(journal_text)}",
         ]
@@ -96,25 +105,31 @@ def signed_envelope(
     journal_url: str,
     payload: dict,
     *,
-    signer_key: str = AGENT_KEY,
-    envelope_agent: str | None = None,
+    signer_key: str = OBSERVER_KEY,
+    envelope_agent: str = AGENT,
+    envelope_observer: str | None = None,
     journal_text: str | None = None,
 ) -> str:
     """Build the response body a correctly signed journal URL serves.
 
     The journal is serialised once and signed byte-for-byte; validators never re-serialise
-    attacker-controlled JSON, so property order and whitespace are part of the signature.
+    attacker-controlled JSON, so property order and whitespace are part of the signature. The
+    signer is the observer; ``envelope_agent`` is the subject whose behaviour is described.
     """
     text = journal_text if journal_text is not None else json.dumps(
         payload, sort_keys=True, separators=(",", ":")
     )
     account = Account.from_key(signer_key)
-    message = evidence_message(contract, chain_id, case_id, claim, account.address, journal_url, text)
+    observer = envelope_observer or account.address
+    message = evidence_message(
+        contract, chain_id, case_id, claim, envelope_agent, observer, journal_url, text
+    )
     signature = account.unsafe_sign_hash(keccak(text=message))
     return json.dumps(
         {
-            "schema": "furlough/journal@2",
-            "agent": envelope_agent or account.address,
+            "schema": "furlough/journal@3",
+            "agent": envelope_agent,
+            "observer": observer,
             "case_id": case_id,
             "journal": text,
             "pubkey": "0x" + account._key_obj.public_key.to_bytes().hex(),

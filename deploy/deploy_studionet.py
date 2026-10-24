@@ -60,6 +60,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Deploy the Furlough AgentBreaker contract.")
     parser.add_argument("--network", choices=sorted(NETWORKS), default="studionet")
     parser.add_argument("--agent", required=True, help="Address the breaker is bound to")
+    parser.add_argument(
+        "--observer",
+        required=True,
+        help="Separate witness address that signs telemetry about the agent",
+    )
     parser.add_argument("--cut-seconds", type=int, default=900, help="Default cut window (max 3600)")
     parser.add_argument(
         "--consensus-max-rotations",
@@ -84,18 +89,23 @@ def main() -> int:
     account = create_account(key)
     owner = to_checksum_address(account.address)
     agent = to_checksum_address(args.agent)
+    observer = to_checksum_address(args.observer)
+    if observer.lower() == agent.lower():
+        print("observer must be a different address from the agent")
+        return 2
     client = create_client(chain=NETWORKS[args.network], account=account)
 
     print(f"network   {args.network}")
     print(f"deployer  {owner}")
     print(f"agent     {agent}")
+    print(f"observer  {observer}")
     print(f"cut window {args.cut_seconds}s (hard max 3600)")
     print()
 
     started = time.time()
     tx_id = client.deploy_contract(
         code=CONTRACT.read_text(),
-        args=[owner, agent],
+        args=[owner, agent, observer],
         kwargs={"default_cut_seconds": args.cut_seconds},
         consensus_max_rotations=args.consensus_max_rotations,
     )
@@ -131,8 +141,8 @@ def main() -> int:
         return 1
 
     print(
-        f"verified  agent={state.get('agent')} owner={state.get('owner')} "
-        f"default_cut_seconds={state.get('default_cut_seconds')}"
+        f"verified  agent={state.get('agent')} observer={state.get('observer')} "
+        f"owner={state.get('owner')} default_cut_seconds={state.get('default_cut_seconds')}"
     )
     print("\nDeployed and FINALIZED.")
     return 0

@@ -8,6 +8,7 @@ import CaseCard from "./CaseCard";
 function facts(stats: Stats): Array<[string, string]> {
   return [
     ["agent (its allowance gets cut)", stats.agent],
+    ["observer (signs telemetry about the agent)", stats.observer],
     ["owner (funds it, cannot suppress a case)", stats.owner],
     ["deposited", formatGen(stats.deposited)],
     ["drawn", formatGen(stats.drawn)],
@@ -69,7 +70,7 @@ export default function StatusBoard() {
                 <div className="value">{value}</div>
               </div>
             ))
-          : Array.from({ length: 9 }).map((_, index) => (
+          : Array.from({ length: 10 }).map((_, index) => (
               <div className="card skeleton" key={index}>
                 <div className="label">reading</div>
                 <div className="value">-</div>

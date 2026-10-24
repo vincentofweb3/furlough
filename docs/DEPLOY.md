@@ -17,8 +17,10 @@ python3.12 -m pip install "genlayer-test[sim]==0.29.2" "genlayer-py==0.16.3"
 ## Deploy
 
 ```bash
-export GENLAYER_PRIVATE_KEY=0x...       # testnet key only
-python3.12 deploy/deploy_studionet.py --agent 0x<agent-address> --cut-seconds 900
+export GENLAYER_PRIVATE_KEY=0x...          # testnet owner/deploy key only
+export GENLAYER_OBSERVER=0x...             # separate witness address
+python3.12 deploy/deploy_studionet.py \
+  --agent 0x<agent-address> --observer "$GENLAYER_OBSERVER" --cut-seconds 900
 ```
 
 Options:
@@ -26,7 +28,8 @@ Options:
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--network` | `studionet` | or `testnet_asimov` |
-| `--agent` | *required* | the address the breaker is bound to |
+| `--agent` | *required* | the address whose allowance the breaker cuts |
+| `--observer` | *required* | the separate witness address whose key must sign evidence; must differ from the agent |
 | `--cut-seconds` | `900` | default cut window; the contract hard-caps this at 3600 |
 | `--consensus-max-rotations` | `5` | lower this, or the deploy stalls waiting on rotations |
 
@@ -36,16 +39,18 @@ re-deploying, because a second deploy creates a second contract.
 
 ## Live deployment
 
-Deployed and exercised on Studionet on 2026-10-23:
+Deployed on Studionet on 2026-10-23; live cases finalized 2026-10-23 to 2026-10-24:
 
 | | |
 | --- | --- |
-| contract | `0x84795e25Ae0BF5337829b614493D054c1c15c907` |
-| deploy tx | `0x04d2cfa2dc7c7dc66b0c6d4946b9081b5fc7dd6ce938de4b17a8e934ef53e2f1` - FINALIZED |
+| contract | `0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0` |
+| deploy tx | `0x9156b52a3794d7d133307f6aa9225aa0b4a6cae4d3cdd73b67ae8c191addad17` - FINALIZED |
 | bound agent | `0x7adE3852187F6FDAC7798c826620F49a9D529964` |
-| signed case | `live-v2-auth-1` tx `0xe476c03040aaf16f8c4c68939a7ed60bd2990cfcda77e10fb89efa64fc69f5d3` - `CONFIRMED_MISBEHAVIOR`, `authenticated=True` |
-| benign signed case | `live-v2-benign-1` tx `0xb6090a9fb5826496f202617da6be019db0ee210e1bbed9231b67c89474414ca8` - `FALSE_REPORT`, `authenticated=True` |
-| unsigned case | `live-v2-unsigned-1` tx `0xfcac4e30bd25c080c93c6ff90f0e7c054124821c6506055ae8949d864f7f8151` - `INSUFFICIENT_EVIDENCE`, `authenticated=False`, no model |
+| bound observer | `0x69780b792B74376D22232668EDCa18008195cD3A` - immutable; no setter |
+| signed case | `live-v3-auth-1` tx `0x1b1ee7baf91def4cfdd6f6cabc63f05dba32242e73ef12e59d7bade8a50916df` - `CONFIRMED_MISBEHAVIOR`, `authenticated=True`, `agent_matches=True` |
+| benign signed case | `live-v3-benign-1` tx `0xc591d813602c7d9c524f2d6854e05f258418ab43b34c15041fb8581250ede04a` - `FALSE_REPORT`, `authenticated=True` |
+| unsigned case | `live-v3-unsigned-1` tx `0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f` - `INSUFFICIENT_EVIDENCE`, `authenticated=False`, no model |
+| foreign-agent case | `live-v3-foreign-1` tx `0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7` - `INSUFFICIENT_EVIDENCE`, `authenticated=True`, `agent_matches=False`, no model |
 | live verdict | one signed cut; it lifted by the clock with no transaction |
 
 The contract **must** carry the runner header on line 1. Without it Studionet finalizes the
@@ -72,22 +77,25 @@ That hash is the canonical one from the GenLayer docs. Do not add a second runne
    });
    ```
 
-2. **Publish a signed journal envelope.** The agent writes a window of its own behaviour, then
-   signs the exact journal bytes, contract, chain, case id, claim and final URL. The contract
-   rejects a raw or unsigned journal. Host a placeholder at the final URL, sign, then replace it
-   with the envelope:
+2. **Publish an observer-signed journal envelope.** The observer writes or attests a window of
+   the agent's behaviour, then signs the exact journal bytes, contract, chain, case id, claim,
+   subject agent and final URL. A distinct agent spending key cannot sign evidence. The owner can
+   reassign the agent role, including to the observer; see `CONSENSUS.md` §11. The contract
+   rejects a raw, unsigned or foreign-agent journal. Host a placeholder at the final URL, sign,
+   then replace it with the envelope:
 
    ```bash
    set -a; . ./.env; set +a
    python3.12 scripts/sign_journal.py \
-     --contract 0x<deployed> --case-id demo-runaway \
+     --contract 0x<deployed> --agent 0x<agent-address> --case-id demo-runaway \
      --claim "The agent hammered one failing endpoint 60 times and burned its allowance." \
      --journal-url https://example.com/journal/demo-runaway.json \
      --journal-file journal.json --out envelope.json
    ```
 
-   `GENLAYER_AGENT_PRIVATE_KEY` is the testnet-only key for the bound agent. The signature binds
-   the URL, so the URL must exist before signing and must serve the finished envelope.
+   `GENLAYER_OBSERVER_PRIVATE_KEY` is the testnet-only witness key; it must differ from the
+   agent's key. The signature binds the URL, so the URL must exist before signing and must serve
+   the finished envelope.
 
 3. **Open a case.** Permissionless - anyone may call it, but the URL must serve the signed
    envelope.
@@ -101,7 +109,8 @@ That hash is the canonical one from the GenLayer docs. Do not add a second runne
    ```
 
 4. **Read the outcome.** `get_case(case_id)` returns the verdict, rationale, digest and the
-   whole window. `digest.authenticated` tells you whether the bound agent signed it.
+   whole window. `digest.authenticated` tells you whether the bound observer signed it;
+   `digest.agent_matches` tells you whether the journal names the bound agent.
    `is_cut()` and `seconds_remaining()` need no wallet.
 
 ## Smoke test after deploy
@@ -120,16 +129,17 @@ In contract terms:
 allowance_remaining() == deposited
 
 # 2. open a case against a signed runaway journal, wait for FINALIZED
-#    LIVE: live-v2-auth-1 -- CONFIRMED_MISBEHAVIOR, authenticated=True, is_cut() == true
-get_verdict("live-v2-auth-1") == "CONFIRMED_MISBEHAVIOR"
-get_case("live-v2-auth-1").digest.authenticated == true
+#    LIVE: live-v3-auth-1 -- CONFIRMED_MISBEHAVIOR, authenticated=True, agent_matches=True
+get_verdict("live-v3-auth-1") == "CONFIRMED_MISBEHAVIOR"
+get_case("live-v3-auth-1").digest.authenticated == true
+get_case("live-v3-auth-1").digest.agent_matches == true
 is_cut() == true
 allowance_remaining() == 0
 
 # 3. do nothing. After default_cut_seconds:
 is_cut() == false
 allowance_remaining() == deposited      # restored with no transaction
-#    LIVE: the signed cut armed at 2026-10-23T00:54:12Z and expired at 01:09:12Z, with no
+#    LIVE: the signed cut armed at 2026-10-23T09:01:53Z and expired at 09:16:53Z, with no
 #    transaction in between. The value loop (deposited > 0) was skipped by decision and is
 #    covered by the custody and settlement tests.
 ```
@@ -193,7 +203,7 @@ its own it does not prevent this.
 ```bash
 python3.12 scripts/check_env.py          # report
 python3.12 scripts/check_env.py --fix    # quarantine the unusable runner
-python3.12 -m pytest -q                  # expect: 106 passed
+python3.12 -m pytest -q                  # expect: 122 passed
 ```
 
 Run `--fix` after any `genvm-lint check`. The script moves the bad runner to
@@ -203,5 +213,5 @@ so an in-place rename leaves the broken runner winning the sort.
 > `genvm-lint check` runs its lint rules clean on this contract, but its SDK-load validation
 > cannot complete on this machine - the `runners/py-genlayer/*.tar` bundle entries have been
 > pruned from `~/.cache`. The same failure occurs on known-good reference contracts, so it is an
-> environment limitation rather than a defect in this contract. The 106-test suite runs the
+> environment limitation rather than a defect in this contract. The 122-test suite runs the
 > contract against a real GenVM bundle and is the stronger check.

@@ -45,7 +45,7 @@ export default function HowPage() {
                 <h3>File</h3>
                 <p>
                   Anyone calls <code>open_case</code> with a claim, a case id and the URL of the
-                  agent&apos;s signed journal envelope. There is no owner gate: a breaker only a
+                  observer-signed journal envelope. There is no owner gate: a breaker only a
                   trusting operator can trigger is not a breaker. You can do this from the{" "}
                   <Link href="/report">report console</Link>.
                 </p>
@@ -56,7 +56,7 @@ export default function HowPage() {
               <div>
                 <h3>Authenticate</h3>
                 <p>
-                  The envelope must name this contract, chain, case, claim, URL and bound agent,
+                  The envelope must name this contract, chain, case, claim, URL, subject agent and observer,
                   and carry a secp256k1 signature over those fields plus the journal bytes. The
                   contract verifies the signature itself. Unsigned or replayed evidence stops here.
                 </p>
@@ -93,10 +93,11 @@ export default function HowPage() {
         <div className="wrap">
           <h2>Stage 1 - authenticate, then reduce</h2>
           <p className="section-sub">
-            Before reduction, the envelope is checked against the bound agent. The signature binds
-            the contract, chain, case id, claim, journal URL and exact journal bytes, so a document
-            signed for one filing cannot be replayed into another. Unsigned evidence never reaches
-            a model.
+            Before reduction, the envelope is checked against the bound observer and subject
+            agent. The signature binds the contract, chain, case id, claim, journal URL, subject
+            agent, observer and exact journal bytes, so a document signed for one filing - or for
+            another agent - cannot be replayed into this one. Unsigned evidence never reaches a
+            model.
           </p>
           <p className="section-sub">
             The decisive reduction property is not &quot;we summarise the journal&quot;. It is that
@@ -150,7 +151,7 @@ export default function HowPage() {
                 </tr>
                 <tr>
                   <td>authenticated</td>
-                  <td>did the bound agent sign this exact case, claim, URL and journal</td>
+                  <td>did the bound observer sign this exact case, claim, URL, journal and subject agent</td>
                   <td>a signature check, identical on every node</td>
                 </tr>
                 <tr>
@@ -169,7 +170,7 @@ export default function HowPage() {
           </p>
           <pre>
             <code>{`{
-  "schema": "furlough/journal@2",
+  "schema": "furlough/journal@3",
   "journal_found": true,
   "authenticated": true,
   "agent_matches": true,
@@ -285,17 +286,17 @@ export default function HowPage() {
 
           <h3 className="mt-34">From the live record</h3>
           <p className="section-sub">
-            The signed case, <code>live-v2-auth-1</code>, end to end:
+            The signed case, <code>live-v3-auth-1</code>, end to end:
           </p>
           <div className="steps">
             <div className="step">
               <div className="no">T</div>
               <div>
-                <h3>00:54:12Z - signed, confirmed and armed</h3>
+                <h3>09:01:53Z - signed, confirmed and armed</h3>
                 <p>
                   Case finalized <code>CONFIRMED_MISBEHAVIOR</code> with{" "}
-                  <code>authenticated=True</code>. The allowance reads 0 GEN from this moment. The
-                  unsigned copy filed at 00:56:45Z finalized as{" "}
+                  <code>authenticated=True</code> and <code>agent_matches=True</code>. The allowance
+                  reads 0 GEN from this moment. The unsigned copy filed at 09:03:03Z finalized as{" "}
                   <code>INSUFFICIENT_EVIDENCE</code> without reaching a model.
                 </p>
               </div>
@@ -303,7 +304,7 @@ export default function HowPage() {
             <div className="step">
               <div className="no">15m</div>
               <div>
-                <h3>01:09:12Z - deadline passes</h3>
+                <h3>09:16:53Z - deadline passes</h3>
                 <p>
                   Nobody sends anything. <code>window_closed()</code> flips true at the expiry
                   second, inclusive, and the allowance reads the full balance again.
@@ -311,13 +312,13 @@ export default function HowPage() {
               </div>
             </div>
             <div className="step">
-              <div className="no">16m</div>
+              <div className="no">after</div>
               <div>
-                <h3>01:10:50Z - verified operating</h3>
+                <h3>Verified operating</h3>
                 <p>
                   A public read shows <code>cut_active=false</code> / <code>OPERATING</code>, with the
-                  cut recorded as lifted by the clock. Screenshot on the{" "}
-                  <Link href="/live">live board</Link>.
+                  cut recorded as lifted by the clock. The{" "}
+                  <Link href="/live">live board</Link> reads the same record.
                 </p>
               </div>
             </div>
@@ -370,16 +371,18 @@ export default function HowPage() {
             <div className="card">
               <h3>Authenticated is not truthful</h3>
               <p className="small">
-                The contract proves the envelope came from the bound agent&apos;s key, not that the
-                telemetry inside it is honest. A compromised agent key can still sign a false
-                journal; a missing journal host fails open as{" "}
-                <code>INSUFFICIENT_EVIDENCE</code>.
+                The contract proves the envelope came from the bound observer&apos;s key, not that the
+                telemetry inside it is honest. A compromised observer key can still sign a false
+                journal, and an observer controlled by the agent&apos;s operator is not independent;
+                a distinct agent spending key cannot sign evidence; the owner can reassign the agent
+                role. A missing journal host fails open
+                as <code>INSUFFICIENT_EVIDENCE</code>.
               </p>
             </div>
             <div className="card">
               <h3>The live value loop is unfunded</h3>
               <p className="small">
-                The v2 deployment has <code>deposited = 0</code>. Deposit, draw, atomic settlement
+                The v3 deployment has <code>deposited = 0</code>. Deposit, draw, atomic settlement
                 and recovery are covered by tests, not by real GEN on chain.
               </p>
             </div>

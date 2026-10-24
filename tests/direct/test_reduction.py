@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from fixtures import AGENT, FIXTURES
+from fixtures import AGENT, FIXTURES, OBSERVER
 
 
 def _digest(module, payload, agent, deposited=0):
@@ -131,22 +131,41 @@ def test_deploy_time_policy_is_rejected(direct_deploy, bad):
     call would have passed for the wrong reason. Parametrised because the harness permits one
     contract load per test.
     """
-    from conftest import AGENT, CONTRACT, OWNER, SDK_VERSION
+    from conftest import AGENT, CONTRACT, OBSERVER, OWNER, SDK_VERSION
 
     with pytest.raises(Exception) as excinfo:
         direct_deploy(
-            CONTRACT, owner=OWNER, agent=AGENT, default_cut_seconds=bad, sdk_version=SDK_VERSION
+            CONTRACT, owner=OWNER, agent=AGENT, observer=OBSERVER, default_cut_seconds=bad, sdk_version=SDK_VERSION
         )
     assert "1..3600" in str(excinfo.value), f"expected the range error for {bad}"
 
 
 def test_deploy_time_policy_accepts_the_cap(direct_deploy):
-    from conftest import AGENT, CONTRACT, OWNER, SDK_VERSION
+    from conftest import AGENT, CONTRACT, OBSERVER, OWNER, SDK_VERSION
 
     contract = direct_deploy(
-        CONTRACT, owner=OWNER, agent=AGENT, default_cut_seconds=3600, sdk_version=SDK_VERSION
+        CONTRACT, owner=OWNER, agent=AGENT, observer=OBSERVER, default_cut_seconds=3600, sdk_version=SDK_VERSION
     )
     assert contract.stats()["default_cut_seconds"] == 3600
+
+
+def test_deploy_rejects_an_observer_equal_to_the_agent(direct_deploy):
+    """Self-attestation must be impossible at the type level, not just discouraged in docs."""
+    from conftest import AGENT, CONTRACT, OWNER, SDK_VERSION
+
+    with pytest.raises(Exception) as excinfo:
+        direct_deploy(CONTRACT, owner=OWNER, agent=AGENT, observer=AGENT, sdk_version=SDK_VERSION)
+    assert "different address" in str(excinfo.value)
+
+
+def test_deploy_rejects_a_malformed_observer(direct_deploy):
+    from conftest import AGENT, CONTRACT, OWNER, SDK_VERSION
+
+    with pytest.raises(Exception) as excinfo:
+        direct_deploy(
+            CONTRACT, owner=OWNER, agent=AGENT, observer="0x1234", sdk_version=SDK_VERSION
+        )
+    assert "20-byte address" in str(excinfo.value)
 
 
 def test_retry_loop_signature_survives_reduction(contract_module):
