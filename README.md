@@ -119,8 +119,9 @@ Deploying to Studionet is covered in [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 Deployed on 23 October 2026. The live record covers the evidence-authentication finding directly:
 a journal signed by the separate observer and naming the bound agent cuts, an unsigned copy of the
-same bytes does not, and an observer-signed journal naming another agent is rejected before any
-model call. An observer-signed benign journal is a false report. The settlement finding is covered
+same bytes does not, an observer-signed journal naming another agent is rejected before any model
+call, and a replayed signed envelope under a new case id is rejected by the case binding. An
+observer-signed benign journal is a false report. The settlement finding is covered
 by the hermetic custody/settlement tests; the live deployment has `deposited == 0`, so no funded
 transfer is claimed.
 
@@ -137,6 +138,7 @@ transfer is claimed.
 | `live-v3-benign-1` | observer-signed ordinary-work envelope, `FALSE_REPORT`, `authenticated=True`, `agent_matches=True`; tx `0xc591d813…0ede04a` |
 | `live-v3-unsigned-1` | same journal bytes without a signature, `INSUFFICIENT_EVIDENCE`, `authenticated=False`, no model consulted; tx `0xd9f6f7c6…b8d27f` |
 | `live-v3-foreign-1` | observer-signed but names another agent, `INSUFFICIENT_EVIDENCE`, `authenticated=True`, `agent_matches=False`, no model consulted; tx `0xdf4b907b…b4c4e7` |
+| `live-v3-auth-2` | the auth-1 envelope replayed under a new case id, `INSUFFICIENT_EVIDENCE`, no model consulted; tx `0x98cfab02…f79fc03e` |
 
 The signed cut ran for the default 900s and lifted with no transaction. The case record itself
 shows `signed by the bound observer true - names the bound agent true` on the valid signed cases,
@@ -255,7 +257,7 @@ Three properties fall out of using consensus rather than a model call:
 - **The live value loop is unfunded.** The v3 deployment has `deposited == 0`, so deposit, draw,
   refund and recovery are proven by tests, not with real GEN on chain.
 - **The hermetic gate does not prove two different real models agree.** It uses a deterministic
-  stand-in. Four live cases finalized under validator consensus, but four cases are not proof.
+  stand-in. Five live case filings finalized under validator consensus, but five filings are not proof.
 - **Single agent per contract.** Swarms are out of scope by decision.
 - **The consoles hold no keys and cannot lift a cut.** The status board renders free walletless
   reads. The report console calls `open_case`; the owner console changes future policy and can

@@ -340,7 +340,7 @@ Stated plainly rather than left to be discovered:
   rotating the witness mid-case, not deliberately assigning the agent role to the witness.
 - **No funded live value loop.** The v3 live deployment has `deposited == 0`, so the transfer
   path is exercised by the settlement tests, not with live GEN. The signed-cut, unsigned-
-  rejection and foreign-agent-rejection paths are live.
+  rejection, foreign-agent-rejection and case-replay-rejection paths are live.
 - **Bands are hand-calibrated.** The edges in `_STEP_BANDS` and friends were chosen against the
   fixtures in `tests/direct/fixtures.py`. They are plausible, not validated against real agent
   traffic. A production version would want the bands derived from observed distributions, and

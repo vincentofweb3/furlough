@@ -216,8 +216,8 @@ export default function HomePage() {
           </p>
           <div className="grid four">
             <div className="card">
-              <span className="num">3</span>
-              <div className="num-note">live cases: confirmed, false report, insufficient evidence</div>
+              <span className="num">5</span>
+              <div className="num-note">live case filings: one cut, one false report, three rejections</div>
             </div>
             <div className="card">
               <span className="num">1</span>

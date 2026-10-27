@@ -47,6 +47,12 @@ export const TRANSACTIONS: EvidenceTx[] = [
     hash: "0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7",
     result: "FINALIZED - INSUFFICIENT_EVIDENCE",
   },
+  {
+    label: "Case live-v3-auth-2",
+    description: "The auth-1 envelope replayed under a different case id; rejected by the case binding.",
+    hash: "0x98cfab02967ffce30d853cd3857faf124baefab3b1e943c5b537ee6df79fc03e",
+    result: "FINALIZED - INSUFFICIENT_EVIDENCE",
+  },
 ];
 
 export type EvidenceCut = {

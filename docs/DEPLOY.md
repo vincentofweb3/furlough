@@ -51,6 +51,7 @@ Deployed on Studionet on 2026-10-23; live cases finalized 2026-10-23 to 2026-10-
 | benign signed case | `live-v3-benign-1` tx `0xc591d813602c7d9c524f2d6854e05f258418ab43b34c15041fb8581250ede04a` - `FALSE_REPORT`, `authenticated=True` |
 | unsigned case | `live-v3-unsigned-1` tx `0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f` - `INSUFFICIENT_EVIDENCE`, `authenticated=False`, no model |
 | foreign-agent case | `live-v3-foreign-1` tx `0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7` - `INSUFFICIENT_EVIDENCE`, `authenticated=True`, `agent_matches=False`, no model |
+| replay case | `live-v3-auth-2` tx `0x98cfab02967ffce30d853cd3857faf124baefab3b1e943c5b537ee6df79fc03e` - `INSUFFICIENT_EVIDENCE`, case binding rejected, no model |
 | live verdict | one signed cut; it lifted by the clock with no transaction |
 
 The contract **must** carry the runner header on line 1. Without it Studionet finalizes the

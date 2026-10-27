@@ -8,8 +8,9 @@ the argument easy to check rather than to argue it hard.
 Current status is honest and marked: **v3 is deployed to Studionet and exercised live.** The
 evidence-authentication finding is covered by live evidence - an unsigned journal is rejected
 before any model call, the agent's spending key cannot self-attest, and a journal signed by the
-separate observer about another agent is rejected before the model. The settlement finding is
-covered by the hermetic custody/settlement tests and remains unfunded live. See §3 and §6.
+separate observer about another agent is rejected before the model, and a replay under a new case
+id is rejected by the case binding. The settlement finding is covered by the hermetic
+custody/settlement tests and remains unfunded live. See §3 and §6.
 
 ---
 
@@ -57,7 +58,7 @@ live form.
 | Deployment | `https://explorer-studio.genlayer.com/address/0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0` - Studio, the network the contract is on |
 | How to test | See "How-to path" below - five walletless steps |
 | Expected verification outcome | See the exact copy below the steps |
-| Evidence | Contract page above; deploy tx https://explorer-studio.genlayer.com/tx/0x9156b52a3794d7d133307f6aa9225aa0b4a6cae4d3cdd73b67ae8c191addad17; signed case https://explorer-studio.genlayer.com/tx/0x1b1ee7baf91def4cfdd6f6cabc63f05dba32242e73ef12e59d7bade8a50916df; unsigned case https://explorer-studio.genlayer.com/tx/0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f; benign case https://explorer-studio.genlayer.com/tx/0xc591d813602c7d9c524f2d6854e05f258418ab43b34c15041fb8581250ede04a; foreign-agent case https://explorer-studio.genlayer.com/tx/0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7; https://github.com/vincentofweb3/furlough#readme; https://github.com/vincentofweb3/furlough/blob/master/references/traceability.md |
+| Evidence | Contract page above; deploy tx https://explorer-studio.genlayer.com/tx/0x9156b52a3794d7d133307f6aa9225aa0b4a6cae4d3cdd73b67ae8c191addad17; signed case https://explorer-studio.genlayer.com/tx/0x1b1ee7baf91def4cfdd6f6cabc63f05dba32242e73ef12e59d7bade8a50916df; unsigned case https://explorer-studio.genlayer.com/tx/0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f; benign case https://explorer-studio.genlayer.com/tx/0xc591d813602c7d9c524f2d6854e05f258418ab43b34c15041fb8581250ede04a; foreign-agent case https://explorer-studio.genlayer.com/tx/0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7; replay case https://explorer-studio.genlayer.com/tx/0x98cfab02967ffce30d853cd3857faf124baefab3b1e943c5b537ee6df79fc03e; https://github.com/vincentofweb3/furlough#readme; https://github.com/vincentofweb3/furlough/blob/master/references/traceability.md |
 | Demo video | Not present. The portal's `Demo URL (YouTube or X) · required` field is labelled **Agent Tank hackathon**, whose build window closed 17 September 2026. If the live form asks for a demo URL, that is an Agent Tank submission, not this Builder project package - stop and flag it. |
 
 ### How-to path
@@ -66,20 +67,21 @@ Use these five steps in the portal's **How-to** section.
 
 | # | Optional heading | Instruction |
 | --- | --- | --- |
-| 01 | Open the live board | Go to https://furlough-dt8b.vercel.app/live/. No wallet is needed. Wait for the status to load and confirm `OPERATING`, network `Studionet - chain 61999`, `default cut window 900s`, and 4 cases on record. |
+| 01 | Open the live board | Go to https://furlough-dt8b.vercel.app/live/. No wallet is needed. Wait for the status to load and confirm `OPERATING`, network `Studionet - chain 61999`, `default cut window 900s`, and 5 cases on record. |
 | 02 | Read the signed case | Find `live-v3-auth-1`. Confirm verdict `CONFIRMED_MISBEHAVIOR`, `authenticated=True`, `agent_matches=True`, cut armed `2026-10-23T09:01:53Z`, expires `2026-10-23T09:16:53Z`, and the line "lifted by the clock, no transaction". |
-| 03 | Verify the transactions | Open https://furlough-dt8b.vercel.app/verify/. Open `live-v3-auth-1` tx `0x1b1ee7baf91def4cfdd6f6cabc63f05dba32242e73ef12e59d7bade8a50916df` and confirm `FINALIZED` / `CONFIRMED_MISBEHAVIOR`. Open `live-v3-unsigned-1` tx `0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f`; confirm `FINALIZED` / `INSUFFICIENT_EVIDENCE`. Open `live-v3-foreign-1` tx `0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7`; confirm `FINALIZED` / `INSUFFICIENT_EVIDENCE` with `authenticated=True` and `agent_matches=False`. |
-| 04 | Confirm there was no unlock | On the same `/verify/` page, scroll to the cut table. Confirm `live-v3-auth-1` lists `0` unlock txs and "by the clock", armed `09:01:53Z`, deadline `09:16:53Z`, lifted `09:16:53Z`. The unsigned and foreign-agent cases have no cut at all. |
+| 03 | Verify the transactions | Open https://furlough-dt8b.vercel.app/verify/. Open `live-v3-auth-1` tx `0x1b1ee7baf91def4cfdd6f6cabc63f05dba32242e73ef12e59d7bade8a50916df` and confirm `FINALIZED` / `CONFIRMED_MISBEHAVIOR`. Open `live-v3-unsigned-1` tx `0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f`; confirm `FINALIZED` / `INSUFFICIENT_EVIDENCE`. Open `live-v3-foreign-1` tx `0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7`; confirm `FINALIZED` / `INSUFFICIENT_EVIDENCE` with `authenticated=True` and `agent_matches=False`. Open `live-v3-auth-2` tx `0x98cfab02967ffce30d853cd3857faf124baefab3b1e943c5b537ee6df79fc03e`; confirm `FINALIZED` / `INSUFFICIENT_EVIDENCE` - the auth-1 envelope replayed under a different case id. |
+| 04 | Confirm there was no unlock | On the same `/verify/` page, scroll to the cut table. Confirm `live-v3-auth-1` lists `0` unlock txs and "by the clock", armed `09:01:53Z`, deadline `09:16:53Z`, lifted `09:16:53Z`. The unsigned, foreign-agent and replay cases have no cut at all. |
 | 05 | Run the tests | Clone https://github.com/vincentofweb3/furlough and run `python3.12 scripts/check_env.py --fetch` once, then `python3.12 -m pytest -q`. Expect `122 passed`, with no network and no API key during the suite. |
 
 **Expected verification outcome - copy this:**
 
-> Existing Studionet deployment, not newly generated. The path shows a working breaker: `OPERATING` on chain 61999, 4 cases filed, 900s default. `live-v3-auth-1` is observer-signed and names the bound agent, `CONFIRMED_MISBEHAVIOR`, and its cut lifted at `2026-10-23T09:16:53Z` by the clock. `live-v3-unsigned-1` is the same journal bytes without a signature and is `INSUFFICIENT_EVIDENCE` - no model, no cut. `live-v3-benign-1` is signed and `FALSE_REPORT`. `live-v3-foreign-1` is observer-signed but names another agent: `INSUFFICIENT_EVIDENCE`, no model, no cut. The cut table shows 0 unlock txs; tests pass 122/122. Contract: `0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0`. Read-only: no wallet or gas.
+> Existing Studionet deployment, not newly generated. The path shows a working breaker: `OPERATING` on chain 61999, 5 cases filed, 900s default. `live-v3-auth-1` is observer-signed and names the bound agent, `CONFIRMED_MISBEHAVIOR`, and its cut lifted at `2026-10-23T09:16:53Z` by the clock. `live-v3-unsigned-1` is the same journal bytes without a signature and is `INSUFFICIENT_EVIDENCE` - no model, no cut. `live-v3-benign-1` is signed and `FALSE_REPORT`. `live-v3-foreign-1` is observer-signed but names another agent: `INSUFFICIENT_EVIDENCE`, no model, no cut. `live-v3-auth-2` replayed the auth-1 envelope under a new case id and was rejected by the case binding. The cut table shows 0 unlock txs; tests pass 122/122. Contract: `0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0`. Read-only: no wallet or gas.
 
-**Form honesty note:** use §4 for the limits. Do not imply the funded value loop ran live or that
-a case was filed through MetaMask; neither happened. The four live cases were filed through the
-CLI, and the updated report console has not been exercised through a browser wallet yet. The SDK
-write path was validated by one owner-policy transaction on the previous deployment.
+**Form honesty note:** use §4 for the limits. Do not imply the funded value loop ran live; it did
+not. The four evidence cases were filed through the CLI. A fifth replay case was filed from an
+external wallet, but the report console's browser flow was not independently verified in this
+review. The SDK write path was validated by one owner-policy transaction on the previous
+deployment.
 
 ---
 
@@ -88,8 +90,8 @@ write path was validated by one owner-policy transaction on the previous deploym
 - [x] Public - committed and pushed to `github.com/vincentofweb3/furlough`
 - [x] `README.md` states the problem, the mechanism and the honest limits in the first screen
 - [x] `LICENSE` present (MIT)
-- [ ] CI badge green for v3 - `.github/workflows/tests.yml` runs the suite on each push; the v3
-      commit/push is pending, so the local 122-test run is the current evidence
+- [x] CI badge green for v3 - `.github/workflows/tests.yml` and `pages.yml` passed on the v3 push
+      (`9f44927`); the 122-test local run matches CI
 - [x] `docs/CONSENSUS.md` - the safety argument, written to be disputed, every claim mapped to a test
 - [x] `references/traceability.md` - criterion → feature → code → test → demo moment
 - [x] `docs/PLAN.md` - what is done, what is blocked, what is deliberately not done
@@ -123,8 +125,8 @@ the foreign-agent journal - authenticated but `agent_matches=False` - and a sign
 or on a different agent is not a breaker.
 
 **Screenshots:** `docs/screenshots/viewer-v3-live.png` captures the local v3 build reading the
-live contract: `OPERATING`, 4 cases, and the `live-v3-auth-1` window lifted by the clock.
-`docs/screenshots/viewer-v3-verify.png` captures the deployment, all five finalized transactions,
+live contract: `OPERATING`, 5 case filings, and the `live-v3-auth-1` window lifted by the clock.
+`docs/screenshots/viewer-v3-verify.png` captures the deployment, all six finalized transactions,
 the cut table and the 122-test count. An active `CUT ACTIVE` frame is still pending because the
 window expired before capture; the two `archive-v1-*.png` files are historical and must not be
 presented as v3 evidence. Capture against the deployed v3 viewer once Vercel is refreshed.
@@ -144,7 +146,7 @@ A reviewer who finds an unclaimed hole discounts everything else. These are alre
   the owner can reassign the agent role (including to the observer). Authentication raises the
   bar; it is not an oracle.
 - **The hermetic gate does not prove two real models agree.** The test model is a deterministic
-  stand-in keyed on the measured bands. Four live cases have finalized, which exercises the live
+  stand-in keyed on the measured bands. Five live case filings have finalized, which exercises the live
   path; that is not proof that independent models agree.
 - **Bands are hand-calibrated** against fixtures, not derived from observed agent traffic.
 - **The live run had no money in it.** The v3 deployment has `deposited == 0`, so deposit, draw,
@@ -189,11 +191,12 @@ No weights are invented here; the program publishes none.
 | 5 | Foreign-agent journal rejected | **done** - `live-v3-foreign-1` tx `0xdf4b907b…b4c4e7`, FINALIZED, `INSUFFICIENT_EVIDENCE`, `authenticated=True`, `agent_matches=False`, no model |
 | 6 | Confirm the cut lifts by itself, no transaction | **done** - armed `2026-10-23T09:01:53Z`, expired `09:16:53Z`; a public read after expiry returned `cut_active=false` / `cut none` with no transaction |
 | 7 | Deposit GEN so the allowance is visibly cut and restored | **skipped by decision** - the live cases ran against a zero allowance and this is not claimed. Accounting, atomic settlement and recovery are proven by tests |
-| 8 | Fresh v3 screenshots | **partial** - local v3 `OPERATING`/verify screenshots captured; active-cut/expiry frame and Vercel-hosted capture remain pending |
-| 9 | Commits pushed, repo public | **pending** - the v3 contract, tests, scripts, viewer and docs are uncommitted; the user commits and pushes manually |
-| 10 | Vercel/Pages serve the v3 viewer | **pending** - code is updated locally; the live sites still serve the old build until the commit triggers deployment |
-| 11 | GitHub OAuth verification on portal.genlayer.com | human |
-| 12 | Submission logo | **done** - `viewer/public/logo.png`, 1024x1024 RGBA PNG, 24 KB; inside the portal's 128-2048 px and 2 MB limits |
+| 8 | Fresh v3 screenshots | **partial** - v3 `OPERATING`/verify screenshots captured from the viewer reading live state; active-cut/expiry frame remains pending |
+| 9 | Commits pushed, repo public | **done** - v3 commit `9f44927` is on `origin/master`; tests and pages workflows passed |
+| 10 | Vercel/Pages serve the v3 viewer | **done** - Vercel and GitHub Pages serve the v3 build; re-check after this replay-case update |
+| 11 | Replay under a new case id rejected | **done** - `live-v3-auth-2` tx `0x98cfab02…f79fc03e`, FINALIZED, `INSUFFICIENT_EVIDENCE`, no cut |
+| 12 | GitHub OAuth verification on portal.genlayer.com | human |
+| 13 | Submission logo | **done** - `viewer/public/logo.png`, 1024x1024 RGBA PNG, 24 KB; inside the portal's 128-2048 px and 2 MB limits |
 
 **Before submitting:** verify OAuth, open every link in the form, and check the live board renders
 after the v3 viewer deploy and after Studionet's next reset. Item 7 stays skipped and is stated

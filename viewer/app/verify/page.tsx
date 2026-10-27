@@ -104,10 +104,10 @@ export default function VerifyPage() {
         <div className="wrap">
           <h2>Finalized transactions</h2>
           <p className="section-sub">
-            Five transactions exist for this deployment: the deploy and four case filings. Three
-            cases carried observer signatures; the unsigned case deliberately did not. One signed
-            case named a different agent and was rejected by <code>agent_matches</code>. Everything
-            else is a read.
+            Six transactions exist for this deployment: the deploy and five case filings. Four
+            filings carried observer envelopes; the unsigned copy deliberately did not. One signed
+            case named a different agent, and one replayed a valid envelope under another case id;
+            both were rejected before any model call. Everything else is a read.
           </p>
           <div className="table-wrap">
             <table className="table">
@@ -188,7 +188,9 @@ export default function VerifyPage() {
             <code>live-v3-unsigned-1</code> served the same journal bytes without a signature and
             finalized as <code>INSUFFICIENT_EVIDENCE</code>.{" "}
             <code>live-v3-foreign-1</code> was signed by the observer but named another agent and
-            was rejected before any model call. No method exists that lifts a cut early. The only
+            was rejected before any model call. <code>live-v3-auth-2</code> replayed the auth-1
+            envelope under a different case id and was rejected by the case binding. No method
+            exists that lifts a cut early. The only
             write after a cut is <code>reap_expired</code>, which records <code>lifted_at</code> for
             the public log and changes no allowance.
           </p>

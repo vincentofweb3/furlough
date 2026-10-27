@@ -270,8 +270,9 @@ behaviour regressed; it does not mean a human eyeballed it once.
       zero-fee. Contract `0xf6434915c52fF21C74d3aDb1CeA9AE68DB8e8Eb0`; signed case
       `0x1b1ee7ba…0916df` reached `CONFIRMED_MISBEHAVIOR`, signed benign case `0xc591d813…0ede04a`
       reached `FALSE_REPORT`, unsigned case `0xd9f6f7c6…b8d27f` reached
-      `INSUFFICIENT_EVIDENCE`, and foreign-agent case `0xdf4b907b…b4c4e7` reached
-      `INSUFFICIENT_EVIDENCE` with `agent_matches=False`. The funded value loop was not exercised
+      `INSUFFICIENT_EVIDENCE`, foreign-agent case `0xdf4b907b…b4c4e7` reached
+      `INSUFFICIENT_EVIDENCE` with `agent_matches=False`, and replay case `0x98cfab02…f79fc03e`
+      was rejected by the case binding. The funded value loop was not exercised
       live; see [`SUBMISSION.md`](SUBMISSION.md) §6.
 - [ ] README setup steps verified on a clean environment.
 

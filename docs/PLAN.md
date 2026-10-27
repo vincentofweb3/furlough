@@ -46,6 +46,7 @@ transaction at zero and a zero-balance key can deploy. The contract is live.
 | signed benign case | `live-v3-benign-1` tx `0xc591d813602c7d9c524f2d6854e05f258418ab43b34c15041fb8581250ede04a` - `FALSE_REPORT`, `authenticated=True` |
 | unsigned case | `live-v3-unsigned-1` tx `0xd9f6f7c6353b21b2e6fcd4c634ca39d30edea649e17942f8f4030634aab8d27f` - `INSUFFICIENT_EVIDENCE`, no model |
 | foreign-agent case | `live-v3-foreign-1` tx `0xdf4b907b87260262aa2e718464e62afe527a3d14104f552f6b1bb3c3f1b4c4e7` - `INSUFFICIENT_EVIDENCE`, `authenticated=True`, `agent_matches=False`, no model |
+| replay case | `live-v3-auth-2` tx `0x98cfab02967ffce30d853cd3857faf124baefab3b1e943c5b537ee6df79fc03e` - `INSUFFICIENT_EVIDENCE`, case binding rejected, no model |
 | live verdict | one signed cut; expired by clock with no transaction |
 
 Studionet resets periodically; treat the address as disposable and re-deploy.
@@ -160,6 +161,8 @@ $ python3.12 -m pytest -q
 - [x] Confirm the agent's spending key cannot self-attest
 - [x] Confirm an observer-signed journal naming another agent is rejected by `agent_matches`
       without reaching a model
+- [x] Confirm the auth-1 envelope replayed under a new case id is rejected by the case binding
+      without reaching a model (filed from an external wallet)
 - [x] Confirm a signed benign journal reaches `FALSE_REPORT`
 - [x] Confirm the signed cut lifts by itself with no transaction
 - [x] Deposit GEN so the allowance is non-zero - **skipped by decision.** The live cases ran
@@ -173,13 +176,14 @@ $ python3.12 -m pytest -q
 - [ ] Active `CUT ACTIVE` and post-expiry screenshots against the deployed v3 viewer - the
       `live-v3-auth-1` window expired before capture; v1 files are archived, not evidence
 - [x] Make the repository public and enable GitHub Pages
-- [ ] Refresh Vercel and GitHub Pages to the v3 build - Vercel still serves v2; local `npm run build` passes
+- [x] Refresh Vercel and GitHub Pages to the v3 build - both serve the v3 viewer; replay-case update pending deployment
 - [x] Submission logo - `viewer/public/logo.png`, 1024x1024 PNG, within the portal limits
 - [ ] Verify GitHub OAuth on portal.genlayer.com and submit the project application
 
-The report console has not yet filed a live case through MetaMask: the four live cases were
-filed through the CLI, and the SDK transaction above validates the same encoding and finality
-path, not the browser wallet UX. Treat the console as newly built, not as battle-tested.
+The report console's browser flow has not been independently verified end-to-end: the four
+evidence cases were filed through the CLI, and a fifth replay case was filed from an external
+wallet. The SDK transaction above validates the same encoding and finality path, not the browser
+wallet UX. Treat the console as newly built, not as battle-tested.
 
 **Deliberately not done, and why:**
 
